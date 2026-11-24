@@ -1,0 +1,802 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Main Quest</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:ital,wght@0,500;0,600;0,700;1,700&family=Nunito+Sans:wght@400;600;700;800&display=swap">
+<style>
+/* Layout: ember-filled night sky behind everything. Sticky header (logo, level chip, tabs).
+   Content is a stack of "slots": a cyan title pill above an amber-bordered panel, like the list cards in the reference.
+   One committed dark look. Pursuit colors are the validated dark categorical slots (blue, orange, aqua, yellow, then magenta, green, violet, red). */
+:root{
+  --bg:#050912; --panel:#08122a; --panel-hi:#0f2146; --field:#06102a;
+  --ember:#f39a2c; --ember-dim:rgba(243,154,44,.4); --ember-ink:#ffd08a;
+  --cyan:#46d9ff; --ink:#eaf4ff; --mute:#93a9c9; --faint:#5d7396; --grid:#1b2a4d;
+  --good:#5be38a; --bad:#ff8a8a;
+  --heat0:#122042; --heat1:#5f3711; --heat2:#9c5a14; --heat3:#df8a22; --heat4:#ffc45e;
+  --f-display:'Chakra Petch','Trebuchet MS',system-ui,sans-serif;
+  --f-body:'Nunito Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{margin:0;color:var(--ink);font:15px/1.5 var(--f-body);-webkit-font-smoothing:antialiased;
+  background:radial-gradient(900px 520px at 12% -6%,#102552 0,transparent 66%),radial-gradient(800px 520px at 100% 100%,#1b1033 0,transparent 62%),var(--bg);background-attachment:fixed}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);background:var(--bg);z-index:60}
+.gut{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+#sky{position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none}
+#app{position:relative;z-index:1}
+h1,h2,h3,p{margin:0}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance}
+a{color:var(--cyan)}
+button,input,select{font:inherit}
+:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+.k{font:700 12px/1.2 var(--f-display);letter-spacing:.08em;text-transform:uppercase;color:var(--ember-ink)}
+.muted{color:var(--mute)} .cy{color:var(--cyan)}
+.num{font-variant-numeric:tabular-nums}
+
+/* header */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:30;background:rgba(5,9,18,.92);backdrop-filter:blur(8px);border-bottom:2px solid var(--ember-dim)}
+.top .inner{max-width:1040px;margin:0 auto;padding-block:10px 0;display:flex;flex-direction:column;gap:4px}
+.brand{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.logo{font:italic 700 26px/1 var(--f-display);letter-spacing:.02em;text-decoration:none;color:var(--ink)}
+.logo b{color:var(--cyan)}
+.chips{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.lvlchip{display:flex;align-items:center;gap:8px;text-decoration:none;color:var(--ink);border:2px solid var(--ember);border-radius:10px;padding:4px 10px;font:700 13px var(--f-display);background:rgba(8,18,42,.8)}
+.lvlchip .mini{width:54px;height:6px;border-radius:3px;background:var(--grid);overflow:hidden}
+.lvlchip .mini i{display:block;height:100%;background:var(--ember)}
+.runchip{display:flex;align-items:center;gap:8px;text-decoration:none;color:var(--cyan);border:2px solid var(--cyan);border-radius:10px;padding:4px 10px;font:700 13px var(--f-display);max-width:220px}
+.runchip span.t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.rdot{width:8px;height:8px;border-radius:50%;background:var(--cyan);animation:pulse 1.4s ease-in-out infinite;flex:none}
+@keyframes pulse{50%{opacity:.25}}
+.sync{display:inline-flex;align-items:center;gap:6px;font:700 11px/1 var(--f-display);letter-spacing:.07em;text-transform:uppercase;color:var(--mute)}
+.sync::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--faint);flex:none}
+.sync[data-s=synced]::before{background:var(--good)}
+.sync[data-s=saving]::before,.sync[data-s=loading]::before{background:var(--cyan);animation:pulse 1.2s ease-in-out infinite}
+.sync[data-s=error]::before,.sync[data-s=denied]::before,.sync[data-s=full]::before{background:var(--ember)}
+.nav{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none}
+.nav::-webkit-scrollbar{display:none}
+.nav a{padding:9px 12px 8px;color:var(--cyan);text-decoration:none;font:700 14px var(--f-display);letter-spacing:.05em;white-space:nowrap;border-bottom:3px solid transparent}
+.nav a:hover{color:var(--ink)}
+.nav a[aria-current=page]{color:var(--ink);border-bottom-color:var(--ember)}
+.wrap{position:relative;max-width:1040px;margin:0 auto;padding-block:20px 90px;display:flex;flex-direction:column;gap:22px}
+
+/* slot = title pill + panel */
+.slot{display:flex;flex-direction:column;gap:8px;min-width:0}
+.pill{border:2px solid var(--ember);border-radius:10px;background:rgba(5,9,18,.88);color:var(--cyan);font:700 14px/1.2 var(--f-display);letter-spacing:.04em;text-align:center;padding:6px 12px;display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap}
+.pill .lv{color:var(--ember-ink);font-size:12px}
+.panel{border:2px solid var(--ember);border-radius:12px;padding:16px;background:linear-gradient(180deg,var(--panel-hi),var(--panel));min-width:0;display:flex;flex-direction:column;gap:12px}
+.grid{display:grid;gap:18px;grid-template-columns:repeat(auto-fill,minmax(min(100%,340px),1fr))}
+.grid2{display:grid;gap:18px;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr))}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.row.between{justify-content:space-between}
+.stack{display:flex;flex-direction:column;gap:10px}
+
+/* buttons & fields */
+.btn{font:700 13px/1 var(--f-display);letter-spacing:.06em;text-transform:uppercase;border:2px solid var(--ember);background:transparent;color:var(--ember-ink);border-radius:9px;padding:10px 14px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:40px;text-decoration:none}
+.btn:hover{background:rgba(243,154,44,.14)}
+.btn.primary{background:var(--ember);color:#1a0f00}
+.btn.primary:hover{background:#ffb04d}
+.btn.cyan{border-color:var(--cyan);color:var(--cyan)}
+.btn.cyan:hover{background:rgba(70,217,255,.12)}
+.btn.small{padding:6px 10px;min-height:32px;font-size:12px}
+.btn.danger{border-color:var(--bad);color:var(--bad)}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.ib{width:36px;height:36px;border:1.5px solid var(--ember-dim);border-radius:9px;background:transparent;color:var(--ember-ink);display:grid;place-items:center;cursor:pointer;flex:none}
+.ib:hover{background:rgba(243,154,44,.14);border-color:var(--ember)}
+.ib.play{color:var(--cyan);border-color:rgba(70,217,255,.45)}
+label.lb{display:flex;flex-direction:column;gap:5px;font:700 12px var(--f-display);letter-spacing:.07em;text-transform:uppercase;color:var(--ember-ink)}
+input,select{color:var(--ink);background:var(--field);border:2px solid var(--ember-dim);border-radius:9px;padding:9px 11px;min-height:40px;width:100%;font-weight:600;font-size:15px;min-width:0}
+input:focus,select:focus{border-color:var(--cyan);outline:none}
+select option{background:var(--field);color:var(--ink)}
+.seg{display:inline-flex;border:2px solid var(--ember-dim);border-radius:10px;overflow:hidden;max-width:100%;overflow-x:auto}
+.seg button{background:transparent;color:var(--cyan);border:0;padding:8px 14px;font:700 13px var(--f-display);letter-spacing:.04em;cursor:pointer;white-space:nowrap}
+.seg button[aria-pressed=true]{background:var(--ember);color:#1a0f00}
+.chip{display:inline-flex;align-items:center;gap:6px;border:1.5px solid var(--ember-dim);background:transparent;color:var(--cyan);border-radius:999px;padding:6px 12px;font:700 12.5px var(--f-body);cursor:pointer}
+.chip:hover{border-color:var(--ember)}
+.chip[aria-pressed=true]{border-color:var(--cyan);background:rgba(70,217,255,.12);color:var(--ink)}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--c,var(--cyan));flex:none;display:inline-block}
+.bar{height:9px;border-radius:5px;background:var(--grid);overflow:hidden}
+.bar i{display:block;height:100%;border-radius:5px;background:var(--c,var(--ember));min-width:0}
+.note{border:1.5px dashed var(--ember-dim);border-radius:10px;padding:10px 12px;color:var(--ember-ink);font-size:14px;display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.empty{color:var(--mute);font-size:14px}
+.hint{font-size:13px;color:var(--mute)}
+
+/* welcome */
+.hero{padding-block:10px 4px;display:flex;flex-direction:column;gap:10px;max-width:640px}
+.hero h1{font-size:clamp(30px,6vw,46px);line-height:1.05;font-weight:700;font-style:italic}
+.hero h1 em{color:var(--cyan);font-style:italic}
+.hero p{color:var(--mute);font-size:16px}
+.plist{display:flex;flex-direction:column;gap:8px}
+
+/* pursuit picker */
+.pcard{all:unset;display:flex;flex-direction:column;gap:8px;cursor:pointer;min-width:0}
+.pcard:focus-visible .panel{outline:2px solid var(--cyan);outline-offset:2px}
+.pcard .panel{align-items:flex-start;min-height:150px;transition:border-color .15s}
+.pcard[aria-pressed=true] .panel{border-color:var(--cyan)}
+.pcard[aria-pressed=true] .pill{border-color:var(--cyan)}
+.pcard .ico{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;background:rgba(255,255,255,.06);color:var(--c)}
+.pcard .sel{margin-top:auto;font:700 12px var(--f-display);letter-spacing:.08em;text-transform:uppercase;color:var(--mute)}
+.pcard[aria-pressed=true] .sel{color:var(--cyan)}
+
+/* meters */
+.meters{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr))}
+.meter{display:flex;flex-direction:column;gap:6px}
+.mhead{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.mv{font:700 20px var(--f-display);font-variant-numeric:tabular-nums}
+.msub{font-size:12.5px;color:var(--cyan)}
+
+/* timer */
+.timer{display:flex;flex-direction:column;gap:10px}
+.clock{font:700 44px/1 var(--f-display);font-variant-numeric:tabular-nums;color:var(--ink);letter-spacing:.02em}
+.tlabel{color:var(--cyan)}
+
+/* tasks */
+.tasks{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+.task{display:flex;gap:12px;align-items:center;padding:9px 0;border-top:1px solid var(--grid)}
+.task:first-child{border-top:0}
+.check{width:34px;height:34px;border-radius:50%;border:2.5px solid var(--c);background:transparent;color:#06102a;display:grid;place-items:center;cursor:pointer;flex:none;padding:0}
+.check svg{opacity:0}
+.task.done .check{background:var(--c)}
+.task.done .check svg{opacity:1}
+.tmain{flex:1;min-width:0}
+.ttitle{font-weight:800;overflow-wrap:anywhere}
+.task.done .ttitle{color:var(--mute);text-decoration:line-through;text-decoration-thickness:1.5px}
+.tmeta{font-size:12.5px;color:var(--cyan);display:flex;gap:4px 10px;flex-wrap:wrap}
+.tacts{display:flex;gap:6px;flex:none}
+.phead{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+
+/* tiles */
+.tiles{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr))}
+.tile{border:2px solid var(--ember-dim);border-radius:12px;padding:12px 14px;background:rgba(8,18,42,.8);display:flex;flex-direction:column;gap:2px;min-width:0}
+.tile .v{font:700 28px/1.1 var(--f-display);font-variant-numeric:tabular-nums}
+.tile .s{font-size:12.5px;color:var(--cyan)}
+.tile .s.up{color:var(--good)} .tile .s.down{color:var(--bad)}
+
+/* habit grid */
+.scrollx{overflow-x:auto;max-width:100%}
+.hgrid{border-collapse:separate;border-spacing:0 6px;min-width:470px;width:100%}
+.hgrid th,.hgrid td{padding:0 3px;text-align:center;font-weight:600}
+.hgrid thead th{font:700 11px var(--f-display);letter-spacing:.06em;color:var(--mute);text-transform:uppercase}
+.hgrid thead th b{display:block;font-size:15px;color:var(--ink)}
+.hgrid thead th.today b{color:var(--cyan)}
+.hgrid tbody th{text-align:left;font-weight:800;min-width:130px;padding-right:8px}
+.hgrid tbody th small{display:block;font-weight:600;color:var(--mute);font-size:12px}
+.hcell{width:34px;height:34px;border-radius:9px;border:2px solid var(--grid);background:transparent;color:#06102a;cursor:pointer;display:grid;place-items:center;margin:auto;font:700 13px var(--f-display);padding:0}
+.hcell.today{border-color:var(--cyan)}
+.hcell.on{background:var(--c);border-color:var(--c)}
+.hcell.part{background:transparent;border-color:var(--c);color:var(--c)}
+.streak{font:700 13px var(--f-display);color:var(--ember-ink);white-space:nowrap}
+
+/* heatmap */
+.heatscroll{overflow-x:auto;max-width:100%;padding-bottom:4px}
+.heatscroll svg{display:block}
+.l0{fill:var(--heat0)} .l1{fill:var(--heat1)} .l2{fill:var(--heat2)} .l3{fill:var(--heat3)} .l4{fill:var(--heat4)}
+.sw{display:inline-block;width:13px;height:13px;border-radius:3px}
+.legend{display:flex;gap:6px 14px;align-items:center;flex-wrap:wrap;font-size:12.5px;color:var(--mute)}
+.legend span.i{display:inline-flex;align-items:center;gap:6px}
+.ctrl{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr))}
+
+/* charts */
+.chart{width:100%}
+.chart svg{display:block;max-width:100%;touch-action:pan-y;overflow:visible}
+.ax{fill:var(--mute);font:600 10.5px var(--f-body)}
+.axf{fill:var(--faint);font:700 9.5px var(--f-body);letter-spacing:.04em}
+.rl{fill:var(--ink);font:700 11.5px var(--f-body)}
+.rl2{fill:var(--mute);font:600 10.5px var(--f-body)}
+table.dt{border-collapse:collapse;width:100%;font-size:13.5px;font-variant-numeric:tabular-nums}
+table.dt th,table.dt td{padding:5px 8px;border-bottom:1px solid var(--grid);text-align:right}
+table.dt th:first-child,table.dt td:first-child{text-align:left}
+table.dt th{color:var(--ember-ink);font:700 11.5px var(--f-display);letter-spacing:.07em;text-transform:uppercase}
+details summary{cursor:pointer;color:var(--cyan);font-weight:700;font-size:14px}
+.hbars{display:flex;flex-direction:column;gap:10px}
+.hb{display:grid;grid-template-columns:minmax(90px,150px) 1fr auto;gap:10px;align-items:center}
+.hb .nm{display:flex;align-items:center;gap:8px;font-weight:700;min-width:0;overflow-wrap:anywhere}
+.hb .bar{height:12px}
+
+/* profile */
+.char{display:flex;gap:20px;align-items:center;flex-wrap:wrap}
+.char .info{flex:1;min-width:200px;display:flex;flex-direction:column;gap:8px}
+.char h2{font-size:28px;font-weight:700}
+.ttl{color:var(--ember-ink);font:700 13px var(--f-display);letter-spacing:.1em;text-transform:uppercase}
+.xpbar{height:12px;border-radius:6px;background:var(--grid);overflow:hidden}
+.xpbar i{display:block;height:100%;background:linear-gradient(90deg,var(--ember),var(--heat4));border-radius:6px}
+.hues{display:flex;gap:8px}
+.hue{width:26px;height:26px;border-radius:50%;border:2px solid var(--bg);outline:2px solid transparent;cursor:pointer;padding:0;background:var(--c)}
+.hue[aria-pressed=true]{outline-color:var(--ink)}
+.badges{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr))}
+.badge{border:2px solid var(--grid);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:2px;color:var(--faint)}
+.badge b{font:700 14px var(--f-display)}
+.badge span{font-size:12.5px}
+.badge.on{border-color:var(--ember);color:var(--ink);background:rgba(243,154,44,.08)}
+.badge.on span{color:var(--cyan)}
+.prow{display:grid;grid-template-columns:minmax(100px,170px) 1fr auto;gap:10px;align-items:center}
+.prow .nm{display:flex;align-items:center;gap:8px;font-weight:800;min-width:0;overflow-wrap:anywhere}
+
+/* modal, toast, tip */
+.scrim{position:fixed;inset:0;z-index:80;background:rgba(2,5,12,.76);display:grid;place-items:center;padding:16px;overflow-y:auto}
+.dlg{width:100%;max-width:460px;border:2px solid var(--ember);border-radius:14px;background:linear-gradient(180deg,var(--panel-hi),var(--panel));padding:20px;display:flex;flex-direction:column;gap:14px;max-height:100%;overflow-y:auto}
+.dlg h2{font-size:22px;color:var(--cyan)}
+.lvlup{text-align:center;align-items:center}
+.lvlup .big{font:italic 700 64px/1 var(--f-display);color:var(--heat4);animation:pop .5s cubic-bezier(.2,1.4,.4,1)}
+@keyframes pop{from{transform:scale(.6);opacity:0}}
+#toast{position:fixed;left:0;right:0;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:90;display:flex;justify-content:center;pointer-events:none;padding-inline:16px}
+#toast div{background:var(--panel-hi);border:2px solid var(--cyan);color:var(--ink);padding:10px 16px;border-radius:10px;font-weight:700;box-shadow:0 8px 30px rgba(0,0,0,.5);max-width:480px}
+#tip{position:fixed;z-index:70;pointer-events:none;background:#0b1836;border:1.5px solid var(--ember);border-radius:8px;padding:7px 10px;font-size:12.5px;line-height:1.45;max-width:260px;opacity:0;left:0;top:0;transition:opacity .08s}
+#tip.on{opacity:1}
+#tip b{color:var(--ember-ink)}
+@media (max-width:520px){
+  .hb,.prow{grid-template-columns:1fr auto}
+  .hb .bar,.prow .bar{grid-column:1/-1;order:3}
+  .clock{font-size:38px}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+.bdl{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.bdr{display:flex;align-items:center;gap:12px;border:1.5px solid var(--grid);border-radius:10px;padding:10px 12px;background:rgba(6,16,42,.6)}
+.bdr.me{border-color:var(--cyan)}
+.bdr .rk{font:700 18px var(--f-display);color:var(--ember-ink);min-width:28px;text-align:center}
+.bdr .who{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
+.bdr .who b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bdr .sc{display:flex;flex-direction:column;align-items:flex-end;font-size:13px}
+.bdr .sc b{font:700 16px var(--f-display);color:var(--ink)}
+.bdps{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--mute)}
+.bdp{display:inline-flex;align-items:center;gap:5px}
+.bdp i{width:8px;height:8px;border-radius:50%;background:var(--c);flex:none}
+</style>
+</head>
+<body>
+<canvas id="sky" aria-hidden="true"></canvas>
+<div id="app"></div>
+<div id="modal"></div>
+<div id="toast" role="status" aria-live="polite"></div>
+<div id="tip" role="tooltip"></div>
+<script>
+"use strict";
+/* ============ helpers ============ */
+const $=(s,r=document)=>r.querySelector(s);
+const $$=(s,r=document)=>Array.from(r.querySelectorAll(s));
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid=()=>Math.random().toString(36).slice(2,8)+Date.now().toString(36).slice(-4);
+const pad=n=>String(n).padStart(2,'0');
+const ymd=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const parse=s=>{const a=s.split('-').map(Number);return new Date(a[0],a[1]-1,a[2])};
+const addDays=(d,n)=>{const x=new Date(d.getFullYear(),d.getMonth(),d.getDate());x.setDate(x.getDate()+n);return x};
+const today=()=>ymd(new Date());
+const mondayOf=d=>addDays(d,-((d.getDay()+6)%7));
+const MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const DOW=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const short=s=>{const d=parse(s);return d.getDate()+' '+MON[d.getMonth()]};
+const long=s=>{const d=parse(s);return DOW[d.getDay()]+' '+d.getDate()+' '+MON[d.getMonth()]};
+const nf=n=>Math.round(n).toLocaleString('en-US');
+const periodKey=(cad,s)=>cad==='daily'?s:cad==='weekly'?ymd(mondayOf(parse(s))):cad==='monthly'?s.slice(0,7):'once';
+const fmtClock=sec=>{const h=Math.floor(sec/3600),m=Math.floor(sec%3600/60),s=sec%60;return h?h+':'+pad(m)+':'+pad(s):pad(m)+':'+pad(s)};
+const fmtMin=m=>m>=60?(Math.floor(m/60)+' h'+(m%60?' '+(m%60)+' min':'')):m+' min';
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+
+const svgi=(d,sz=18,fill)=>'<svg viewBox="0 0 24 24" width="'+sz+'" height="'+sz+'" fill="'+(fill?'currentColor':'none')+'" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+d+'</svg>';
+const IC={
+  book:'<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>',
+  pulse:'<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',
+  heart:'<path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>',
+  sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>',
+  star:'<path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>',
+  play:'<path d="M7 4l13 8-13 8z"/>',
+  clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  plus:'<path d="M12 5v14M5 12h14"/>',
+  minus:'<path d="M5 12h14"/>',
+  trash:'<path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/>',
+  check:'<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+  brief:'<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M3 13h18"/>',
+  stop:'<rect x="6" y="6" width="12" height="12" rx="2"/>'
+};
+
+/* ============ data ============ */
+const KEY='mainquest:v1';
+let persistOK=true;
+let root={profiles:[],activeId:null,data:{}};
+try{const r=JSON.parse(localStorage.getItem(KEY));if(r&&Array.isArray(r.profiles)&&r.data)root=r}catch(e){}
+function persistLocal(){try{localStorage.setItem(KEY,JSON.stringify(root));persistOK=true}catch(e){persistOK=false}}
+function save(){root.updated=Date.now();persistLocal();scheduleFlush();schedBoard()}
+try{localStorage.setItem(KEY+':t','1');localStorage.removeItem(KEY+':t')}catch(e){persistOK=false}
+const cur=()=>root.data[root.activeId];
+const prof=()=>root.profiles.find(p=>p.id===root.activeId);
+function newProfile(o){const id=uid();root.profiles.push({id,name:o.name,email:o.email||null,guest:!!o.guest,demo:!!o.demo,hue:0,created:Date.now()});root.data[id]={pursuits:[],tasks:[],comps:[],sess:[],timer:null};root.activeId=id;save();return id}
+
+const PRESETS=[
+ {key:'academics',name:'Academics',color:'#3987e5',icon:'book',blurb:'Classes, study sessions, assignments and skills you are learning.',sug:[['Study session','daily',1,25],['Read a chapter','daily',1,10],['Finish an assignment','weekly',2,50],['Revise a full topic','monthly',1,100]]},
+ {key:'fitness',name:'Fitness',color:'#d95926',icon:'pulse',blurb:'Workouts, steps, stretching, sport and recovery.',sug:[['10 minute stretch','daily',1,10],['Walk 8,000 steps','daily',1,10],['Workout','weekly',4,25],['Try a new activity','monthly',1,50]]},
+ {key:'mind',name:'Mental Health',color:'#199e70',icon:'heart',blurb:'Sleep, journaling, meditation, therapy and time with people.',sug:[['Meditate 10 minutes','daily',1,10],['Write in a journal','daily',1,10],['Call a friend','weekly',2,25],['Plan a screen-free day','monthly',1,50]]},
+ {key:'spirit',name:'Spirituality',color:'#c98500',icon:'sun',blurb:'Prayer, reflection, gratitude, service and time in nature.',sug:[['Morning reflection','daily',1,10],['Gratitude note','daily',1,10],['Time in nature','weekly',1,25],['Give back or volunteer','monthly',1,50]]},
+ {key:'career',name:'Career',color:'#2aa7b8',icon:'brief',blurb:'Work projects, skills, networking and your next step up.',sug:[['Deep work block','daily',1,25],['Learn a work skill','daily',1,10],['Ship a project milestone','weekly',2,50],['Network or update your CV','monthly',1,50]]}
+];
+const CUSTOM=['#d55181','#0ca30c','#9085e9','#e66767'];
+const HUES=['#46d9ff','#f39a2c','#5be3b0','#b99bff','#ff7ac6','#ffd24a'];
+const DIFF=[['easy','Easy',10],['medium','Medium',25],['hard','Hard',50],['epic','Epic',100]];
+const CAD={daily:'Daily',weekly:'Weekly',monthly:'Monthly',once:'One-off'};
+const PER={daily:'today',weekly:'this week',monthly:'this month',once:''};
+const TITLES=['Wanderer','Initiate','Apprentice','Adept','Specialist','Veteran','Master','Champion','Legend','Mythic'];
+const MAXP=8;
+
+function addPreset(D,key){let p=D.pursuits.find(x=>x.key===key);if(p){p.active=true;return p}const pr=PRESETS.find(x=>x.key===key);p={id:uid(),key,name:pr.name,color:pr.color,icon:pr.icon,custom:false,active:true};D.pursuits.push(p);return p}
+function addCustom(D,name){const n=D.pursuits.filter(p=>p.custom).length;const p={id:uid(),key:null,name,color:CUSTOM[n%CUSTOM.length],icon:'star',custom:true,active:true};D.pursuits.push(p);return p}
+const activeP=D=>D.pursuits.filter(p=>p.active);
+const pById=(D,id)=>D.pursuits.find(p=>p.id===id);
+
+const lvlBase=L=>50*L*(L-1);
+function levelOf(xp){let L=1;while(xp>=lvlBase(L+1))L++;const b=lvlBase(L),n=lvlBase(L+1);return{L,base:b,next:n,into:xp-b,span:n-b,frac:(xp-b)/(n-b)}}
+const titleOf=L=>TITLES[Math.min(L-1,TITLES.length-1)];
+const events=D=>D.comps.map(c=>({date:c.date,xp:c.xp,pid:c.pid})).concat(D.sess.map(s=>({date:s.date,xp:s.xp,pid:s.pid})));
+const totalXp=D=>events(D).reduce((a,e)=>a+e.xp,0);
+function xpByP(D,upto){const m={};events(D).forEach(e=>{if(upto&&e.date>upto)return;m[e.pid]=(m[e.pid]||0)+e.xp});return m}
+const liveTasks=D=>D.tasks.filter(t=>!t.archived&&D.pursuits.some(p=>p.active&&p.id===t.pid));
+const countIn=(D,t,date)=>{const k=periodKey(t.cad,date);return D.comps.filter(c=>c.tid===t.id&&periodKey(t.cad,c.date)===k)};
+const minsIn=(D,t,date)=>{const k=periodKey(t.cad,date);return D.sess.filter(s=>s.tid===t.id&&periodKey(t.cad,s.date)===k).reduce((a,s)=>a+s.min,0)};
+function progressFor(D,cad){const ts=liveTasks(D).filter(t=>t.cad===cad);let done=0,total=0;ts.forEach(t=>{total+=t.target;done+=Math.min(t.target,countIn(D,t,today()).length)});return{done,total}}
+function xpWindow(D,from,to){return events(D).filter(e=>e.date>=from&&(!to||e.date<=to)).reduce((a,e)=>a+e.xp,0)}
+const monStr=()=>ymd(mondayOf(new Date()));
+function streaks(D){const dates=new Set(D.comps.map(c=>c.date).concat(D.sess.map(s=>s.date)));let cur=0,d=new Date();if(!dates.has(ymd(d)))d=addDays(d,-1);while(dates.has(ymd(d))){cur++;d=addDays(d,-1)}
+  const arr=Array.from(dates).sort();let best=0,run=0,prev=null;arr.forEach(s=>{run=prev&&ymd(addDays(parse(prev),1))===s?run+1:1;best=Math.max(best,run);prev=s});return{cur,best,days:dates.size}}
+function habitStreak(D,t){const m={};D.comps.forEach(c=>{if(c.tid===t.id)m[c.date]=(m[c.date]||0)+1});let n=0,d=new Date();if((m[ymd(d)]||0)<t.target)d=addDays(d,-1);while((m[ymd(d)]||0)>=t.target){n++;d=addDays(d,-1)}return n}
+function dayMap(D,pid){const m={};const o=s=>m[s]||(m[s]={tasks:0,min:0,xp:0});D.comps.forEach(c=>{if(pid!=='all'&&c.pid!==pid)return;const r=o(c.date);r.tasks++;r.xp+=c.xp});D.sess.forEach(s=>{if(pid!=='all'&&s.pid!==pid)return;const r=o(s.date);r.min+=s.min;r.xp+=s.xp});return m}
+
+/* ============ state ============ */
+const state={tab:'daily',pf:'all',range:'30',hw:'26',hm:'tasks',hp:'all',lastFocus:null,route:''};
+function snap(D){const x=levelOf(totalXp(D)).L;const px=xpByP(D);const p={};activeP(D).forEach(a=>p[a.id]=levelOf(px[a.id]||0).L);return{L:x,p}}
+function afterXp(D,b,msg){const a=snap(D);const ups=activeP(D).filter(p=>a.p[p.id]>(b.p[p.id]||1));
+  if(a.L>b.L){openModal('<div class="lvlup stack" style="align-items:center"><div class="k">Level up</div><div class="big">'+a.L+'</div><h2 id="dt">'+esc(titleOf(a.L))+'</h2>'+(ups.length?'<p class="cy">'+ups.map(p=>esc(p.name)+' reached level '+a.p[p.id]).join('<br>')+'</p>':'')+'<p class="muted">Keep the streak going. Your radar just grew.</p><button class="btn primary" data-act="close" autofocus>Continue</button></div>')}
+  else if(ups.length){toast(ups.map(p=>p.name+' reached level '+a.p[p.id]).join(' · '))}
+  else if(msg)toast(msg)}
+
+/* ============ actions on data ============ */
+function tap(tid,date){const D=cur();const t=D.tasks.find(x=>x.id===tid);if(!t)return;const list=countIn(D,t,date);
+  if(list.length>=t.target){undoOne(D,t,date);save();render();toast('Removed: '+t.title);return}
+  const b=snap(D);D.comps.push({id:uid(),tid:t.id,title:t.title,pid:t.pid,date:t.cad==='daily'?date:today(),xp:t.xp,ts:Date.now()});save();render();afterXp(D,b,'+'+t.xp+' XP · '+t.title)}
+function undoOne(D,t,date){const l=countIn(D,t,date).sort((a,b)=>b.ts-a.ts);if(l.length)D.comps=D.comps.filter(c=>c.id!==l[0].id)}
+function logSession(D,tid,min,date,src){const t=D.tasks.find(x=>x.id===tid);if(!t)return null;const s={id:uid(),tid,title:t.title,pid:t.pid,date,min,xp:Math.floor(min/5),src,ts:Date.now()};D.sess.push(s);save();return s}
+const elapsed=D=>D.timer?Math.max(0,Math.floor((Date.now()-D.timer.at)/1000)):0;
+function stopTimer(){const D=cur();const tm=D.timer;if(!tm)return;const sec=elapsed(D);D.timer=null;
+  if(sec<30){save();render();toast('Timer discarded. Sessions under 30 seconds are not logged.');return}
+  let min=Math.max(1,Math.round(sec/60)),capped=false;if(min>480){min=480;capped=true}
+  const b=snap(D);const s=logSession(D,tm.tid,min,today(),'timer');render();
+  const t=D.tasks.find(x=>x.id===tm.tid);const open=t&&countIn(D,t,today()).length<t.target;
+  const lv=snap(D);
+  if(lv.L>b.L){afterXp(D,b)}else{
+    openModal('<h2 id="dt">Session saved</h2><p>'+fmtMin(min)+(capped?' (capped at 8 h)':'')+' on <b>'+esc(s.title)+'</b>. <span class="cy">+'+s.xp+' XP</span></p>'+(open?'<p class="muted">Is the quest finished?</p><div class="row"><button class="btn primary" data-act="markdone" data-id="'+t.id+'" autofocus>Mark complete</button><button class="btn" data-act="close">Not yet</button></div>':'<button class="btn primary" data-act="close" autofocus>Done</button>'))}}
+
+/* ============ demo data ============ */
+function rng(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function seedDemo(){
+  const id=newProfile({name:'Example Hero',guest:true,demo:true});const D=root.data[id];
+  const A=addPreset(D,'academics'),F=addPreset(D,'fitness'),M=addPreset(D,'mind'),S=addPreset(D,'spirit'),G=addCustom(D,'Guitar');
+  const defs=[[A,'Study session','daily',1,25,.8],[A,'Read a chapter','daily',1,10,.55],[A,'Finish an assignment','weekly',2,50,.5],
+    [F,'10 minute stretch','daily',1,10,.6],[F,'Workout','weekly',4,25,.8],[F,'Try a new activity','monthly',1,50,.5],
+    [M,'Meditate 10 minutes','daily',1,10,.65],[M,'Write in a journal','daily',1,10,.5],[M,'Call a friend','weekly',2,25,.6],
+    [S,'Morning reflection','daily',1,10,.5],[S,'Time in nature','weekly',1,25,.6],
+    [G,'Practice scales','daily',1,10,.4],[G,'Learn a new song','monthly',1,100,.6]];
+  const tasks=defs.map(d=>{const t={id:uid(),pid:d[0].id,title:d[1],cad:d[2],target:d[3],xp:d[4],p:d[5],created:Date.now(),archived:false};D.tasks.push(t);return t});
+  D.tasks.push({id:uid(),pid:A.id,title:'Sign up for the science fair',cad:'once',target:1,xp:50,created:Date.now(),archived:false});
+  const R=rng(7),DAYS=150,now=new Date();
+  for(let i=DAYS-1;i>=0;i--){const d=addDays(now,-i),s=ymd(d),g=.45+.55*((DAYS-1-i)/(DAYS-1));
+    tasks.forEach(t=>{if(countIn(D,t,s).length>=t.target)return;
+      const pr=t.cad==='daily'?t.p*g:t.cad==='weekly'?Math.min(1,t.target/7*1.3)*t.p*g*1.1:.12*t.p*g;
+      if(R()<pr){D.comps.push({id:uid(),tid:t.id,title:t.title,pid:t.pid,date:s,xp:t.xp,ts:d.getTime()});
+        if(R()<.55){const min=[15,20,25,30,45,60][Math.floor(R()*6)];D.sess.push({id:uid(),tid:t.id,title:t.title,pid:t.pid,date:s,min,xp:Math.floor(min/5),src:R()<.7?'timer':'manual',ts:d.getTime()})}}})}
+  save();return id}
+
+/* ============ modal / toast / tooltip ============ */
+function openModal(html){state.lastFocus=document.activeElement;$('#modal').innerHTML='<div class="scrim" data-scrim><div class="dlg" role="dialog" aria-modal="true" aria-labelledby="dt">'+html+'</div></div>';const f=$('#modal [autofocus]')||$('#modal input')||$('#modal select')||$('#modal button');if(f)f.focus()}
+function closeModal(){$('#modal').innerHTML='';const f=state.lastFocus;if(f&&document.contains(f)){try{f.focus({preventScroll:true})}catch(e){}}}
+let toastT;function toast(m){const t=$('#toast');t.innerHTML='<div>'+esc(m)+'</div>';clearTimeout(toastT);toastT=setTimeout(()=>{t.innerHTML=''},3600)}
+const tip=$('#tip');
+function showTip(html,x,y){tip.innerHTML=html;tip.classList.add('on');const r=tip.getBoundingClientRect();let l=x-r.width/2,t=y-r.height-14;l=clamp(l,8,innerWidth-r.width-8);if(t<8)t=y+18;tip.style.left=l+'px';tip.style.top=t+'px'}
+const hideTip=()=>tip.classList.remove('on');
+document.addEventListener('pointermove',e=>{const el=e.target.closest&&e.target.closest('[data-tip]');if(el)showTip(el.getAttribute('data-tip'),e.clientX,e.clientY);else if(!(e.target.closest&&e.target.closest('.hit')))hideTip()});
+document.addEventListener('pointerdown',e=>{const el=e.target.closest&&e.target.closest('[data-tip]');if(el)showTip(el.getAttribute('data-tip'),e.clientX,e.clientY);else if(!(e.target.closest&&e.target.closest('.hit')))hideTip()});
+window.addEventListener('scroll',hideTip,{passive:true});
+
+/* ============ views ============ */
+function route(){let h=(location.hash||'').slice(1);const D=root.activeId&&cur();if(!D||!prof())return'welcome';if(h==='welcome')return'welcome';if(!activeP(D).length)return'pursuits';return['quests','habits','growth','board','profile','pursuits'].indexOf(h)>-1?h:'quests'}
+
+function header(r){const D=root.activeId&&cur();if(!D)return'<header class="top"><div class="gut"><div class="inner"><div class="brand"><a class="logo" href="#welcome"><span>MAIN</span> <b>QUEST</b></a><span class="sync" data-sync data-s="'+syncState+'" role="status">'+SYNC[syncState]+'</span></div><div style="height:10px"></div></div></div></header>';
+  const lv=levelOf(totalXp(D));const tk=D.timer?D.tasks.find(t=>t.id===D.timer.tid):null;
+  const tabs=[['quests','Quests'],['habits','Habits'],['growth','Growth'],['board','Board'],['profile','Profile']];
+  return '<header class="top"><div class="gut"><div class="inner"><div class="brand"><a class="logo" href="#quests"><span>MAIN</span> <b>QUEST</b></a><div class="chips"><span class="sync" data-sync data-s="'+syncState+'" role="status">'+SYNC[syncState]+'</span>'
+   +(D.timer?'<a class="runchip" href="#quests" aria-label="Timer running"><i class="rdot"></i><span class="num" data-clock>'+fmtClock(elapsed(D))+'</span><span class="t">'+esc(tk?tk.title:'')+'</span></a>':'')
+   +'<a class="lvlchip" href="#profile" aria-label="Level '+lv.L+', '+esc(prof().name)+'"><span>LV '+lv.L+'</span><span class="mini"><i style="width:'+Math.round(lv.frac*100)+'%"></i></span></a></div></div>'
+   +'<nav class="nav" aria-label="Pages">'+tabs.map(t=>'<a href="#'+t[0]+'"'+(r===t[0]?' aria-current="page"':'')+'>'+t[1]+'</a>').join('')+'</nav></div></div></header>'}
+
+function viewWelcome(){
+  const ps=root.profiles;
+  return '<section class="hero"><h1>Be the <em>main character</em> of your week.</h1><p>Turn study, fitness, mental health, spirituality or any goal of your own into quests. Finish them, earn XP, level up and watch your radar grow.</p></section>'
+  +'<div class="grid2"><section class="slot"><div class="pill">Play as guest</div><form class="panel" data-form="guest"><label class="lb">Character name (optional)<input id="gname" name="name" maxlength="24" placeholder="Wanderer" autocomplete="off"></label><p class="hint">No sign-up needed. Progress is saved to your Claude account when you are signed in, and always in this browser.</p><button class="btn primary" type="submit">Start playing</button></form></section>'
+  +'<section class="slot"><div class="pill">Sign up with email</div><form class="panel" data-form="email"><label class="lb">Character name<input id="ename" name="name" maxlength="24" autocomplete="nickname"></label><label class="lb">Email<input id="eemail" name="email" type="email" required autocomplete="email" placeholder="you@example.com"></label><label class="lb">Password<input id="epw" name="password" type="password" minlength="8" autocomplete="current-password" placeholder="At least 8 characters"></label><p class="hint">Use the same email and password to come back and to join the leaderboard. Profiles are saved in this browser, and to your Claude account when you are signed in.</p><button class="btn primary" type="submit">Create or open profile</button></form></section></div>'
+  +(ps.length?'<section class="slot"><div class="pill">Your profiles</div><div class="panel plist">'+ps.map(p=>{const D=root.data[p.id];const lv=levelOf(D?totalXp(D):0);return '<div class="row between"><div><b>'+esc(p.name)+'</b> <span class="muted">· Level '+lv.L+' · '+(p.demo?'example data':p.email?esc(p.email):'guest')+'</span></div><button class="btn small cyan" data-act="pick" data-id="'+p.id+'">Continue</button></div>'}).join('')+'</div></section>':'')
+  +'<p class="hint">Just looking? <a href="#welcome" data-act="demo">Open an example journey</a> with five months of sample progress.</p>'}
+
+function viewPursuits(){
+  const D=cur();const act=activeP(D);const n=act.length;
+  const cards=PRESETS.map(pr=>{const p=D.pursuits.find(x=>x.key===pr.key);const on=!!(p&&p.active);
+    return '<button class="pcard" style="--c:'+pr.color+'" aria-pressed="'+on+'" data-act="tpreset" data-key="'+pr.key+'" data-fk="pre-'+pr.key+'"><span class="slot"><span class="pill">'+esc(pr.name)+'</span><span class="panel"><span class="ico">'+svgi(IC[pr.icon],24)+'</span><span class="muted">'+esc(pr.blurb)+'</span><span class="sel">'+(on?'Selected':'Tap to choose')+'</span></span></span></button>'}).join('');
+  const customs=D.pursuits.filter(p=>p.custom);
+  return '<section class="slot"><div class="pill">Choose your pursuits</div><div class="panel"><p>Pick the areas of life you want to grow. Each one gets its own quests, XP and level. The radar on your profile works best with 5 or 6.</p><p class="hint">Deselecting a pursuit hides it. Your XP and history stay saved.</p></div></section>'
+  +'<div class="grid">'+cards
+  +'<section class="slot"><div class="pill">Your own pursuit</div><div class="panel"><form class="stack" data-form="custom"><label class="lb">Name it<input id="cname" name="name" maxlength="22" placeholder="Guitar, Career, Reading…" autocomplete="off"></label><button class="btn cyan" type="submit">'+svgi(IC.plus,16)+' Add pursuit</button></form>'
+  +(customs.length?'<div class="row">'+customs.map(p=>'<button class="chip" style="--c:'+p.color+'" aria-pressed="'+p.active+'" data-act="tcustom" data-id="'+p.id+'" data-fk="cus-'+p.id+'"><i class="dot"></i>'+esc(p.name)+'</button>').join('')+'</div>':'')+'</div></section></div>'
+  +'<div class="row between"><span class="muted">'+n+' of '+MAXP+' selected</span><button class="btn primary" data-act="topursuitsdone"'+(n?'':' disabled')+'>'+(location.hash==='#pursuits'&&D.tasks.length?'Save':'Continue')+'</button></div>'}
+
+function timerPanel(D){
+  if(D.timer){const t=D.tasks.find(x=>x.id===D.timer.tid);return '<div class="timer"><div class="tlabel">Focusing on <b>'+esc(t?t.title:'a quest')+'</b></div><div class="clock" data-clock>'+fmtClock(elapsed(D))+'</div><div class="row"><button class="btn primary" data-act="stop">'+svgi(IC.stop,16,1)+' Stop and save</button><button class="btn" data-act="discard">Discard</button></div><p class="hint">XP: 1 for every 5 minutes, added to the quest\'s pursuit.</p></div>'}
+  const ts=liveTasks(D);if(!ts.length)return'<p class="empty">Add a quest below to use the timer.</p>';
+  return '<form class="timer" data-form="start"><label class="lb" for="tsel">Start a focus timer<select id="tsel" name="tid">'+activeP(D).map(p=>{const l=ts.filter(t=>t.pid===p.id);return l.length?'<optgroup label="'+esc(p.name)+'">'+l.map(t=>'<option value="'+t.id+'">'+esc(t.title)+'</option>').join('')+'</optgroup>':''}).join('')+'</select></label><div class="row"><button class="btn primary" type="submit">'+svgi(IC.play,16,1)+' Start</button><button class="btn" type="button" data-act="logtime">'+svgi(IC.clock,16)+' Add time manually</button></div></form>'}
+
+function taskRow(D,t,p){
+  const list=countIn(D,t,today());const n=list.length,done=n>=t.target;const mins=minsIn(D,t,today());
+  const meta=['+'+t.xp+' XP',CAD[t.cad]];if(t.target>1)meta.push(n+'/'+t.target+' '+PER[t.cad]);if(mins)meta.push(fmtMin(mins)+(PER[t.cad]?' '+PER[t.cad]:''));
+  const running=D.timer&&D.timer.tid===t.id;
+  return '<li class="task'+(done?' done':'')+'" style="--c:'+p.color+'"><button class="check" data-act="tap" data-id="'+t.id+'" data-date="'+today()+'" data-fk="tap-'+t.id+'" aria-label="'+(done?'Undo ':'Complete ')+esc(t.title)+'">'+svgi(IC.check,20)+'</button>'
+  +'<div class="tmain"><div class="ttitle">'+esc(t.title)+'</div><div class="tmeta">'+meta.map(m=>'<span>'+esc(m)+'</span>').join('')+'</div></div><div class="tacts">'
+  +(n>0&&t.target>1&&!done?'<button class="ib" data-act="untap" data-id="'+t.id+'" aria-label="Remove one completion">'+svgi(IC.minus,16)+'</button>':'')
+  +(running?'':'<button class="ib play" data-act="start" data-id="'+t.id+'" aria-label="Start timer for '+esc(t.title)+'">'+svgi(IC.play,15,1)+'</button>')
+  +'<button class="ib" data-act="logtime" data-id="'+t.id+'" aria-label="Add time to '+esc(t.title)+'">'+svgi(IC.clock,16)+'</button>'
+  +'<button class="ib" data-act="deltask" data-id="'+t.id+'" aria-label="Delete '+esc(t.title)+'">'+svgi(IC.trash,16)+'</button></div></li>'}
+
+function viewQuests(){
+  const D=cur();const ps=activeP(D);
+  const xpToday=xpWindow(D,today(),today()),xpWeek=xpWindow(D,monStr()),xpMonth=xpWindow(D,today().slice(0,7)+'-01');
+  const mt=[['Today','Daily quests','daily',xpToday],['This week','Weekly quests','weekly',xpWeek],['This month','Monthly quests','monthly',xpMonth]].map(a=>{const g=progressFor(D,a[2]);const pc=g.total?Math.round(g.done/g.total*100):0;
+    return '<div class="meter"><div class="mhead"><span class="k">'+a[0]+'</span><span class="mv">'+(g.total?g.done+'/'+g.total:'–')+'</span></div><div class="bar" role="progressbar" aria-label="'+a[0]+'" aria-valuemin="0" aria-valuemax="100" aria-valuenow="'+pc+'"><i style="width:'+pc+'%"></i></div><div class="msub">'+a[1]+' · +'+nf(xpMonth&&a[2]==='monthly'?xpMonth:a[3])+' XP</div></div>'}).join('');
+  const openCount=c=>{const ts=liveTasks(D).filter(t=>t.cad===c);return ts.filter(t=>countIn(D,t,today()).length<t.target).length};
+  const tabs='<div class="seg" role="group" aria-label="Quest type">'+Object.keys(CAD).map(c=>'<button aria-pressed="'+(state.tab===c)+'" data-act="tab" data-v="'+c+'">'+CAD[c]+' ('+openCount(c)+')</button>').join('')+'</div>';
+  const filt='<div class="row" role="group" aria-label="Filter by pursuit"><button class="chip" aria-pressed="'+(state.pf==='all')+'" data-act="pf" data-v="all">All</button>'+ps.map(p=>'<button class="chip" style="--c:'+p.color+'" aria-pressed="'+(state.pf===p.id)+'" data-act="pf" data-v="'+p.id+'"><i class="dot"></i>'+esc(p.name)+'</button>').join('')+'</div>';
+  const cards=ps.filter(p=>state.pf==='all'||p.id===state.pf).map(p=>{
+    const lv=levelOf((xpByP(D)[p.id])||0);const ts=liveTasks(D).filter(t=>t.pid===p.id&&t.cad===state.tab);
+    const done=ts.reduce((a,t)=>a+Math.min(t.target,countIn(D,t,today()).length),0),tot=ts.reduce((a,t)=>a+t.target,0);
+    const pr=PRESETS.find(x=>x.key===p.key);const sg=pr?pr.sug.map((s,i)=>({s,i})).filter(o=>o.s[1]===state.tab):[];
+    const body=ts.length?'<ul class="tasks">'+ts.sort((a,b)=>(countIn(D,a,today()).length>=a.target)-(countIn(D,b,today()).length>=b.target)).map(t=>taskRow(D,t,p)).join('')+'</ul>'
+      :'<p class="empty">No '+CAD[state.tab].toLowerCase()+' quests here yet.</p>'+(sg.length?'<div class="row">'+sg.map(o=>'<button class="chip" data-act="quick" data-key="'+p.key+'" data-i="'+o.i+'">+ '+esc(o.s[0])+'</button>').join('')+'</div>':'');
+    return '<section class="slot" style="--c:'+p.color+'"><div class="pill"><i class="dot"></i>'+esc(p.name)+' <span class="lv">LV '+lv.L+'</span></div><div class="panel"><div class="phead"><span class="k">'+(tot?done+' of '+tot+' done':'Nothing set')+'</span><button class="btn small" data-act="newtask" data-pid="'+p.id+'">'+svgi(IC.plus,14)+' Quest</button></div>'+body+'</div></section>'}).join('');
+  return (prof().demo?'<div class="note"><span>You are viewing example data.</span><button class="btn small cyan" data-act="leavedemo">Start my own journey</button></div>':'')
+  +(!persistOK&&syncState!=='synced'&&syncState!=='saving'&&syncState!=='loading'?'<div class="note">Browser storage is blocked here and your account is not connected, so progress may be lost when you close the page.</div>':'')
+  +'<div class="grid2"><section class="slot"><div class="pill">Progress</div><div class="panel"><div class="meters">'+mt+'</div></div></section><section class="slot"><div class="pill">Focus timer</div><div class="panel">'+timerPanel(D)+'</div></section></div>'
+  +'<div class="row between">'+tabs+'<button class="btn primary" data-act="newtask">'+svgi(IC.plus,16)+' New quest</button></div>'+filt+'<div class="grid">'+cards+'</div>'}
+
+function habitCell(D,t,s,p){const n=countIn(D,t,s).length;const on=n>=t.target;const part=n>0&&!on;
+  return '<td><button class="hcell'+(on?' on':part?' part':'')+(s===today()?' today':'')+'" style="--c:'+p.color+'" aria-pressed="'+on+'" data-act="tap" data-id="'+t.id+'" data-date="'+s+'" data-fk="h-'+t.id+s+'" aria-label="'+esc(t.title)+', '+long(s)+': '+(on?'done':part?n+' of '+t.target:'not done')+'">'+(on?svgi(IC.check,18):(t.target>1&&n?n:''))+'</button></td>'}
+function viewHabits(){
+  const D=cur();const ps=activeP(D);const hs=liveTasks(D).filter(t=>t.cad==='daily');
+  const days=[];for(let i=6;i>=0;i--)days.push(ymd(addDays(new Date(),-i)));
+  const st=streaks(D);const dm=dayMap(D,'all');const last30=Object.keys(dm).filter(s=>s>=ymd(addDays(new Date(),-29))).length;
+  const tiles='<div class="tiles"><div class="tile"><span class="k">Current streak</span><span class="v">'+st.cur+'<small style="font-size:15px"> days</small></span><span class="s">Any quest or timer counts</span></div><div class="tile"><span class="k">Best streak</span><span class="v">'+st.best+'<small style="font-size:15px"> days</small></span></div><div class="tile"><span class="k">Active days</span><span class="v">'+last30+'<small style="font-size:15px"> / 30</small></span><span class="s">Last 30 days</span></div><div class="tile"><span class="k">Quests done</span><span class="v">'+nf(D.comps.length)+'</span><span class="s">All time</span></div></div>';
+  const grid=hs.length?'<div class="scrollx"><table class="hgrid"><thead><tr><th scope="col"><span class="sr" style="position:absolute;left:-9999px">Habit</span></th>'+days.map(s=>'<th scope="col" class="'+(s===today()?'today':'')+'">'+DOW[parse(s).getDay()].slice(0,2)+'<b>'+parse(s).getDate()+'</b></th>').join('')+'<th scope="col">Streak</th></tr></thead><tbody>'
+    +hs.map(t=>{const p=pById(D,t.pid);return '<tr style="--c:'+p.color+'"><th scope="row"><i class="dot" style="--c:'+p.color+'"></i> '+esc(t.title)+'<small>'+esc(p.name)+'</small></th>'+days.map(s=>habitCell(D,t,s,p)).join('')+'<td class="streak">'+habitStreak(D,t)+' d</td></tr>'}).join('')+'</tbody></table></div>'
+    :'<p class="empty">Daily quests show up here as habits. Add one from the Quests page and set it to repeat daily.</p>';
+  const pOpts='<option value="all">All pursuits</option>'+ps.map(p=>'<option value="'+p.id+'"'+(state.hp===p.id?' selected':'')+'>'+esc(p.name)+'</option>').join('');
+  const mk=state.hm;const rows=[];for(let i=0;i<14;i++){const s=ymd(addDays(new Date(),-i));const r=(dayMap(D,state.hp)[s])||{tasks:0,min:0,xp:0};rows.push('<tr><td>'+long(s)+'</td><td>'+r.tasks+'</td><td>'+r.min+'</td><td>'+r.xp+'</td></tr>')}
+  return tiles
+  +'<section class="slot"><div class="pill">Daily habits · last 7 days</div><div class="panel">'+grid+'<p class="hint">Tap a square to check a habit off. You can fill in the last 7 days.</p></div></section>'
+  +'<section class="slot"><div class="pill">Activity heatmap</div><div class="panel"><div class="ctrl"><label class="lb">Measure<select data-set="hm"><option value="tasks"'+(mk==='tasks'?' selected':'')+'>Quests done</option><option value="min"'+(mk==='min'?' selected':'')+'>Minutes focused</option><option value="xp"'+(mk==='xp'?' selected':'')+'>XP earned</option></select></label><label class="lb">Pursuit<select data-set="hp">'+pOpts+'</select></label><label class="lb">Range<select data-set="hw"><option value="26"'+(state.hw==='26'?' selected':'')+'>Last 6 months</option><option value="52"'+(state.hw==='52'?' selected':'')+'>Last year</option></select></label></div>'
+  +'<div class="heatscroll"><div data-chart="heat"></div></div><div class="legend"><span class="i">Less <i class="sw l0" style="background:var(--heat0)"></i><i class="sw" style="background:var(--heat1)"></i><i class="sw" style="background:var(--heat2)"></i><i class="sw" style="background:var(--heat3)"></i><i class="sw" style="background:var(--heat4)"></i> More</span></div>'
+  +'<details><summary>Show the last 14 days as a table</summary><div class="scrollx"><table class="dt"><thead><tr><th>Day</th><th>Quests</th><th>Minutes</th><th>XP</th></tr></thead><tbody>'+rows.join('')+'</tbody></table></div></details></div></section>'}
+
+function viewGrowth(){
+  const D=cur();const ps=activeP(D);const wk=monStr();const pwk=ymd(addDays(parse(wk),-7));
+  const w=xpWindow(D,wk),pw=xpWindow(D,pwk,ymd(addDays(parse(pwk),Math.round((parse(today())-parse(wk))/864e5)))),mo=xpWindow(D,today().slice(0,7)+'-01');
+  const hrs=D.sess.filter(s=>s.date>=wk).reduce((a,s)=>a+s.min,0)/60;const qn=D.comps.filter(c=>c.date>=wk).length;
+  const dl=w-pw;const dtxt=pw?(dl>=0?'+':'')+nf(dl)+' vs same days last week':'First week';
+  const tiles='<div class="tiles"><div class="tile"><span class="k">XP this week</span><span class="v">'+nf(w)+'</span><span class="s '+(dl>0?'up':dl<0?'down':'')+'">'+dtxt+'</span></div><div class="tile"><span class="k">XP this month</span><span class="v">'+nf(mo)+'</span><span class="s">'+MON[new Date().getMonth()]+'</span></div><div class="tile"><span class="k">Focus this week</span><span class="v">'+(Math.round(hrs*10)/10)+'<small style="font-size:15px"> h</small></span><span class="s">Timer and manual</span></div><div class="tile"><span class="k">Quests this week</span><span class="v">'+qn+'</span><span class="s">Completed</span></div></div>';
+  const rg=['30','90','all'];const rl={'30':'30 days','90':'90 days','all':'All time'};
+  const px=xpByP(D);const maxMin=Math.max(1,...ps.map(p=>D.sess.filter(s=>s.pid===p.id).reduce((a,s)=>a+s.min,0)));
+  const tb=ps.map(p=>{const m=D.sess.filter(s=>s.pid===p.id).reduce((a,s)=>a+s.min,0);return '<div class="hb" style="--c:'+p.color+'"><span class="nm"><i class="dot"></i>'+esc(p.name)+'</span><div class="bar" role="img" aria-label="'+esc(p.name)+': '+fmtMin(m)+'"><i style="width:'+Math.round(m/maxMin*100)+'%"></i></div><span class="num">'+(Math.round(m/6)/10)+' h</span></div>'}).join('');
+  return tiles
+  +'<section class="slot"><div class="pill">Total XP</div><div class="panel"><div class="row between"><div class="seg" role="group" aria-label="Range">'+rg.map(r=>'<button aria-pressed="'+(state.range===r)+'" data-act="range" data-v="'+r+'">'+rl[r]+'</button>').join('')+'</div><span class="hint">Dashed lines mark level thresholds</span></div><div class="chart" data-chart="line"></div></div></section>'
+  +'<div class="grid2"><section class="slot"><div class="pill">XP per week</div><div class="panel"><div class="legend">'+ps.map(p=>'<span class="i"><i class="dot" style="--c:'+p.color+'"></i>'+esc(p.name)+'</span>').join('')+'</div><div class="chart" data-chart="bars"></div></div></section>'
+  +'<section class="slot"><div class="pill">Time invested</div><div class="panel"><div class="hbars">'+tb+'</div><p class="hint">All time, from the timer and manual entries.</p></div></section></div>'}
+
+function avatar(size,color,frac,L){const c=size/2,r=size/2-6,C=2*Math.PI*r;
+  return '<svg viewBox="0 0 '+size+' '+size+'" width="'+size+'" height="'+size+'" role="img" aria-label="Your character, level '+L+'"><defs><linearGradient id="avg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#17346a"/><stop offset="1" stop-color="#081330"/></linearGradient><clipPath id="avc"><circle cx="'+c+'" cy="'+c+'" r="'+(r-5)+'"/></clipPath></defs>'
+  +'<circle cx="'+c+'" cy="'+c+'" r="'+(r-5)+'" fill="url(#avg)"/><g clip-path="url(#avc)"><circle cx="'+c+'" cy="'+(c-size*.07)+'" r="'+size*.15+'" fill="'+color+'"/><ellipse cx="'+c+'" cy="'+(c+size*.34)+'" rx="'+size*.3+'" ry="'+size*.24+'" fill="'+color+'"/></g>'
+  +'<circle cx="'+c+'" cy="'+c+'" r="'+r+'" fill="none" stroke="#1b2a4d" stroke-width="6"/><circle cx="'+c+'" cy="'+c+'" r="'+r+'" fill="none" stroke="'+color+'" stroke-width="6" stroke-linecap="round" stroke-dasharray="'+(C*frac)+' '+C+'" transform="rotate(-90 '+c+' '+c+')"/></svg>'}
+
+function viewProfile(){
+  const D=cur(),pr=prof();const xp=totalXp(D);const lv=levelOf(xp);const st=streaks(D);const ps=activeP(D);const px=xpByP(D);
+  const hrs=D.sess.reduce((a,s)=>a+s.min,0)/60;
+  const ach=[['First step','Complete your first quest',D.comps.length>=1],['On a roll','Reach a 7-day streak',st.best>=7],['Deep focus','Log 10 hours of focus time',hrs>=10],['Rising','Reach level 5',lv.L>=5],['Well rounded','Level 2 in three or more pursuits',ps.length>=3&&ps.filter(p=>levelOf(px[p.id]||0).L>=2).length>=3],['Century','Complete 100 quests',D.comps.length>=100]];
+  const rows=ps.map(p=>{const l=levelOf(px[p.id]||0);return '<div class="prow" style="--c:'+p.color+'"><span class="nm"><i class="dot"></i>'+esc(p.name)+'</span><div class="bar" role="img" aria-label="'+esc(p.name)+' level '+l.L+', '+Math.round(l.frac*100)+'% to next"><i style="width:'+Math.round(l.frac*100)+'%"></i></div><span class="num">LV '+l.L+' · '+nf(px[p.id]||0)+' XP</span></div>'}).join('');
+  return '<section class="slot"><div class="pill">Character</div><div class="panel"><div class="char">'+avatar(132,HUES[pr.hue||0],lv.frac,lv.L)+'<div class="info"><span class="ttl">'+esc(titleOf(lv.L))+'</span><h2>'+esc(pr.name)+'</h2><div class="row"><b class="num">Level '+lv.L+'</b><span class="muted num">'+nf(lv.into)+' / '+nf(lv.span)+' XP to level '+(lv.L+1)+'</span></div><div class="xpbar" role="progressbar" aria-label="XP to next level" aria-valuemin="0" aria-valuemax="100" aria-valuenow="'+Math.round(lv.frac*100)+'"><i style="width:'+Math.round(lv.frac*100)+'%"></i></div>'
+  +'<div class="row"><span class="k">Colour</span><div class="hues" role="group" aria-label="Character colour">'+HUES.map((h,i)=>'<button class="hue" style="--c:'+h+'" aria-pressed="'+((pr.hue||0)===i)+'" aria-label="Colour '+(i+1)+'" data-act="hue" data-i="'+i+'"></button>').join('')+'</div></div></div></div>'
+  +'<div class="tiles"><div class="tile"><span class="k">Total XP</span><span class="v">'+nf(xp)+'</span></div><div class="tile"><span class="k">Streak</span><span class="v">'+st.cur+'<small style="font-size:15px"> d</small></span><span class="s">Best '+st.best+' d</span></div><div class="tile"><span class="k">Focus time</span><span class="v">'+(Math.round(hrs*10)/10)+'<small style="font-size:15px"> h</small></span></div><div class="tile"><span class="k">Quests done</span><span class="v">'+nf(D.comps.length)+'</span></div></div></div></section>'
+  +'<div class="grid2"><section class="slot"><div class="pill">Pursuit radar</div><div class="panel"><div class="legend"><span class="i"><i class="sw" style="background:var(--ember)"></i>Now</span><span class="i"><i class="sw" style="border:2px dashed var(--cyan);background:transparent;width:15px;height:9px;border-radius:2px"></i>30 days ago</span><span class="i">Rings are levels</span></div><div class="chart" data-chart="radar"></div></div></section>'
+  +'<section class="slot"><div class="pill">Pursuit levels</div><div class="panel stack">'+rows+'<div class="row"><a class="btn small cyan" href="#pursuits">Edit pursuits</a></div></div></section></div>'
+  +'<section class="slot"><div class="pill">Achievements</div><div class="panel"><div class="badges">'+ach.map(a=>'<div class="badge'+(a[2]?' on':'')+'"><b>'+a[0]+'</b><span>'+a[1]+(a[2]?' · earned':'')+'</span></div>').join('')+'</div></div></section>'
+  +'<section class="slot"><div class="pill">Account</div><div class="panel stack"><form class="row" data-form="rename" style="flex-wrap:nowrap"><label class="lb" style="flex:1">Character name<input id="rname" name="name" maxlength="24" value="'+esc(pr.name)+'"></label><button class="btn small cyan" type="submit" style="align-self:flex-end">Save</button></form>'
+  +'<p class="hint">'+(pr.demo?'Example data profile. ':pr.email?'Email profile: '+esc(pr.email)+'. ':'Guest profile. ')+(syncState==='synced'||syncState==='saving'?'Your progress is stored with your Claude account and follows you across devices. Changes made on another device show up after you reload.':'Your progress is saved in this browser only right now.')+'</p><div class="row"><a class="btn small" href="#welcome">Switch profile</a><button class="btn small danger" data-act="reset">Reset progress</button><button class="btn small danger" data-act="delprofile">Delete profile</button></div></div></section>'}
+
+/* ============ charts ============ */
+const niceCeil=v=>{if(v<=0)return 10;const p=Math.pow(10,Math.floor(Math.log10(v)));const f=v/p;return(f<=1?1:f<=2?2:f<=5?5:10)*p};
+function drawHeat(el){
+  const D=cur();const weeks=Number(state.hw),m=dayMap(D,state.hp),key=state.hm;const now=new Date();const start=addDays(mondayOf(now),-7*(weeks-1));
+  const st=16,left=30,top=20;let max=0;Object.keys(m).forEach(s=>{max=Math.max(max,m[s][key])});
+  let out='',lab='';
+  for(let w=0;w<weeks;w++){for(let d=0;d<7;d++){const dt=addDays(start,w*7+d);if(dt>now)continue;const s=ymd(dt);const r=m[s]||{tasks:0,min:0,xp:0};const v=r[key];const l=v<=0?0:Math.min(4,Math.max(1,Math.ceil(v/max*4)));
+    out+='<rect class="l'+l+'" x="'+(left+w*st)+'" y="'+(top+d*st)+'" width="13" height="13" rx="3" data-tip="'+esc('<b>'+long(s)+'</b><br>'+r.tasks+' quests · '+r.min+' min · '+r.xp+' XP')+'"/>';
+    if(d===0&&(w===0||dt.getMonth()!==addDays(dt,-7).getMonth()))lab+='<text class="ax" x="'+(left+w*st)+'" y="12">'+MON[dt.getMonth()]+'</text>'}}
+  const dl=[[0,'Mon'],[2,'Wed'],[4,'Fri']].map(a=>'<text class="ax" x="0" y="'+(top+a[0]*st+11)+'">'+a[1]+'</text>').join('');
+  const W=left+weeks*st,H=top+7*st;
+  el.innerHTML='<svg width="'+W+'" height="'+H+'" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Activity heatmap, '+weeks+' weeks. A table of the last 14 days is below.">'+lab+dl+out+'</svg>'}
+
+function xpSeries(D,rk){const ev=events(D);const by={};ev.forEach(e=>by[e.date]=(by[e.date]||0)+e.xp);const now=new Date();let start;
+  if(rk==='all'){const f=ev.length?ev.map(e=>e.date).sort()[0]:ymd(now);start=parse(f);const mn=addDays(now,-13);if(start>mn)start=mn;const mx=addDays(now,-364);if(start<mx)start=mx}else start=addDays(now,-(Number(rk)-1));
+  const ss=ymd(start);let cum=0;ev.forEach(e=>{if(e.date<ss)cum+=e.xp});const pts=[];for(let d=start;ymd(d)<=ymd(now);d=addDays(d,1)){const s=ymd(d);const g=by[s]||0;cum+=g;pts.push({date:s,cum,gain:g})}return pts}
+function drawLine(el){
+  const D=cur();const pts=xpSeries(D,state.range);const n=pts.length;const W=Math.max(260,el.clientWidth||320),H=W<480?220:270;const mg={l:48,r:16,t:16,b:26};const pw=W-mg.l-mg.r,ph=H-mg.t-mg.b;
+  const v0=pts[0].cum,v1=pts[n-1].cum;const loL=levelOf(v0).L,hiL=levelOf(v1).L+1;const lo=lvlBase(loL),hi=lvlBase(hiL);
+  let ticks=[];for(let L=loL;L<=hiL;L++)ticks.push(L);if(ticks.length>6){const k=Math.ceil(ticks.length/6);ticks=ticks.filter((L,i)=>i%k===0||L===hiL)}
+  const X=i=>mg.l+pw*(i/(n-1)),Y=v=>mg.t+ph*(1-(v-lo)/(hi-lo));
+  let g='';ticks.forEach(L=>{const y=Y(lvlBase(L));g+='<line x1="'+mg.l+'" x2="'+(W-mg.r)+'" y1="'+y+'" y2="'+y+'" stroke="#1b2a4d" stroke-width="1" '+(L===loL?'':'stroke-dasharray="4 4"')+'/><text class="ax" x="'+(mg.l-8)+'" y="'+(y+3.5)+'" text-anchor="end">'+nf(lvlBase(L))+'</text><text class="axf" x="'+(mg.l+4)+'" y="'+(y-4)+'">LV '+L+'</text>'});
+  const line=pts.map((p,i)=>(i?'L':'M')+X(i).toFixed(1)+','+Y(p.cum).toFixed(1)).join('');
+  const area=line+'L'+X(n-1)+','+(mg.t+ph)+'L'+X(0)+','+(mg.t+ph)+'Z';
+  let xl='';(pw<300?[0,.5,1]:[0,.25,.5,.75,1]).forEach((f,k,arr)=>{const i=Math.round(f*(n-1));xl+='<text class="ax" x="'+X(i)+'" y="'+(H-6)+'" text-anchor="'+(k===0?'start':k===arr.length-1?'end':'middle')+'">'+short(pts[i].date)+'</text>'});
+  const ex=X(n-1),ey=Y(v1);
+  el.innerHTML='<svg width="'+W+'" height="'+H+'" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Total XP over time, now '+nf(v1)+' XP"><defs><linearGradient id="xg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffc45e" stop-opacity=".32"/><stop offset="1" stop-color="#ffc45e" stop-opacity="0"/></linearGradient></defs>'
+   +g+'<path d="'+area+'" fill="url(#xg)"/><path d="'+line+'" fill="none" stroke="#ffc45e" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>'+xl
+   +'<circle cx="'+ex+'" cy="'+ey+'" r="5" fill="#ffc45e" stroke="#08122a" stroke-width="2"/><text class="rl" x="'+(ex-8)+'" y="'+(ey-12)+'" text-anchor="end">'+nf(v1)+' XP</text>'
+   +'<g class="xh" style="display:none"><line y1="'+mg.t+'" y2="'+(mg.t+ph)+'" stroke="#46d9ff" stroke-width="1.5"/><circle r="5" fill="#46d9ff" stroke="#08122a" stroke-width="2"/></g>'
+   +'<rect class="hit" x="'+mg.l+'" y="'+mg.t+'" width="'+pw+'" height="'+ph+'" fill="transparent"/></svg>';
+  const ov=el.querySelector('.hit'),xh=el.querySelector('.xh');
+  const mv=e=>{const r=ov.getBoundingClientRect();const i=Math.round(clamp((e.clientX-r.left)/r.width,0,1)*(n-1));const p=pts[i];const cx=X(i),cy=Y(p.cum);xh.style.display='';xh.querySelector('line').setAttribute('x1',cx);xh.querySelector('line').setAttribute('x2',cx);const c=xh.querySelector('circle');c.setAttribute('cx',cx);c.setAttribute('cy',cy);
+    showTip('<b>'+long(p.date)+'</b><br>'+nf(p.cum)+' XP · Level '+levelOf(p.cum).L+'<br>'+(p.gain?'+'+nf(p.gain)+' XP that day':'No XP that day'),e.clientX,e.clientY)};
+  ov.addEventListener('pointermove',mv);ov.addEventListener('pointerdown',mv);ov.addEventListener('pointerleave',()=>{xh.style.display='none';hideTip()})}
+
+function topRound(x,y,w,h,r){r=Math.min(r,h/2,w/2);return'M'+x+','+(y+h)+'V'+(y+r)+'Q'+x+','+y+' '+(x+r)+','+y+'H'+(x+w-r)+'Q'+(x+w)+','+y+' '+(x+w)+','+(y+r)+'V'+(y+h)+'Z'}
+function drawBars(el){
+  const D=cur();const ps=activeP(D);const NW=8;const mon=mondayOf(new Date());const keys=[];for(let i=NW-1;i>=0;i--)keys.push(ymd(addDays(mon,-7*i)));
+  const data={};keys.forEach(k=>data[k]={});let hasOther=false;
+  events(D).forEach(e=>{const k=ymd(mondayOf(parse(e.date)));if(!data[k])return;const id=ps.some(p=>p.id===e.pid)?e.pid:'_o';if(id==='_o')hasOther=true;data[k][id]=(data[k][id]||0)+e.xp});
+  const series=ps.map(p=>({id:p.id,name:p.name,color:p.color}));if(hasOther)series.push({id:'_o',name:'Archived',color:'#5d7396'});
+  const tot=k=>series.reduce((a,s)=>a+(data[k][s.id]||0),0);const mx=niceCeil(Math.max(1,...keys.map(tot)));
+  const W=Math.max(260,el.clientWidth||320),H=W<480?230:270;const mg={l:44,r:8,t:12,b:26};const pw=W-mg.l-mg.r,ph=H-mg.t-mg.b;const band=pw/NW,bw=Math.min(40,band*.62);const Y=v=>mg.t+ph*(1-v/mx);
+  let g='';for(let i=0;i<=4;i++){const v=mx*i/4,y=Y(v);g+='<line x1="'+mg.l+'" x2="'+(W-mg.r)+'" y1="'+y+'" y2="'+y+'" stroke="#1b2a4d"/><text class="ax" x="'+(mg.l-8)+'" y="'+(y+3.5)+'" text-anchor="end">'+nf(v)+'</text>'}
+  let bars='',xl='';keys.forEach((k,i)=>{const cx=mg.l+band*(i+.5),x=cx-bw/2;let acc=0;const segs=series.filter(s=>(data[k][s.id]||0)>0);
+    segs.forEach((s,j)=>{const v=data[k][s.id];const y1=Y(acc+v),y0=Y(acc);acc+=v;const gap=j===0?0:2;const hh=Math.max(1,y0-y1-gap);const top=y1;
+      bars+=j===segs.length-1?'<path d="'+topRound(x,top,bw,hh,4)+'" fill="'+s.color+'"/>':'<rect x="'+x+'" y="'+top+'" width="'+bw+'" height="'+hh+'" fill="'+s.color+'"/>'});
+    const tt='<b>Week of '+short(k)+'</b>'+series.map(s=>data[k][s.id]?'<br>'+esc(s.name)+': '+nf(data[k][s.id])+' XP':'').join('')+'<br><b>Total '+nf(tot(k))+' XP</b>';
+    bars+='<rect x="'+(mg.l+band*i)+'" y="'+mg.t+'" width="'+band+'" height="'+ph+'" fill="transparent" data-tip="'+esc(tt)+'"/>';
+    if(band>=44||(NW-1-i)%2===0)xl+='<text class="ax" x="'+cx+'" y="'+(H-6)+'" text-anchor="middle">'+(i===NW-1?'This wk':short(k))+'</text>'});
+  el.innerHTML='<svg width="'+W+'" height="'+H+'" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="XP earned per week by pursuit, last 8 weeks">'+g+bars+xl+'</svg>'}
+
+function drawRadar(el){
+  const D=cur();const ps=activeP(D);const n=ps.length;
+  if(n<3){el.innerHTML='<p class="empty">The radar needs at least 3 pursuits. <a href="#pursuits">Add more</a>.</p>';return}
+  const S=clamp(el.clientWidth||340,280,460);const cx=S/2,cy=S/2,R=S/2-74;
+  const cut=ymd(addDays(new Date(),-30));const now=xpByP(D),then=xpByP(D,cut);
+  const val=(m,p)=>{const l=levelOf(m[p.id]||0);return l.L+l.frac};
+  const vn=ps.map(p=>val(now,p)),vt=ps.map(p=>val(then,p));const M=Math.max(3,Math.ceil(Math.max.apply(null,vn.concat(vt))));
+  const step=M>8?2:1;const ang=i=>-Math.PI/2+i*2*Math.PI/n;const pt=(i,r)=>[cx+Math.cos(ang(i))*r,cy+Math.sin(ang(i))*r];
+  let g='';for(let k=step;k<=M;k+=step){g+='<polygon points="'+ps.map((_,i)=>pt(i,R*k/M).join(',')).join(' ')+'" fill="none" stroke="#1b2a4d" stroke-width="1"/>';g+='<text class="axf" x="'+(cx+4)+'" y="'+(cy-R*k/M-3)+'">'+k+'</text>'}
+  ps.forEach((_,i)=>{const e=pt(i,R);g+='<line x1="'+cx+'" y1="'+cy+'" x2="'+e[0]+'" y2="'+e[1]+'" stroke="#1b2a4d"/>'});
+  const poly=v=>ps.map((_,i)=>pt(i,R*v[i]/M).join(',')).join(' ');
+  let lab='',dots='';
+  ps.forEach((p,i)=>{const c=Math.cos(ang(i)),s=Math.sin(ang(i));const lx=cx+c*(R+16),ly=cy+s*(R+16);const anc=Math.abs(c)<.25?'middle':c>0?'start':'end';
+    let nm=p.name.length>13?p.name.slice(0,12)+'…':p.name;let lines=[nm];if(nm.length>9&&nm.indexOf(' ')>0){const k=nm.indexOf(' ',Math.floor(nm.length/2)-3);const sp=k>0?k:nm.indexOf(' ');lines=[nm.slice(0,sp),nm.slice(sp+1)]}
+    const L=levelOf(now[p.id]||0).L;lines.push('LV '+L);const y0=ly+(s>.5?10:s<-.5?-lines.length*12+6:-lines.length*6+8);
+    lab+='<text text-anchor="'+anc+'">'+lines.map((t,j)=>'<tspan class="'+(j===lines.length-1?'rl2':'rl')+'" x="'+lx+'" y="'+(y0+j*12.5)+'">'+esc(t)+'</tspan>').join('')+'</text>';
+    const q=pt(i,R*vn[i]/M);const gain=Math.round((now[p.id]||0)-(then[p.id]||0));
+    dots+='<circle cx="'+q[0]+'" cy="'+q[1]+'" r="5" fill="'+p.color+'" stroke="#08122a" stroke-width="2"/><circle cx="'+q[0]+'" cy="'+q[1]+'" r="15" fill="transparent" data-tip="'+esc('<b>'+p.name+'</b><br>Level '+L+' · '+nf(now[p.id]||0)+' XP<br>'+(gain?'+'+nf(gain)+' XP in 30 days':'No XP in 30 days'))+'"/>'});
+  el.innerHTML='<svg width="'+S+'" height="'+S+'" viewBox="0 0 '+S+' '+S+'" role="img" aria-label="Radar of pursuit levels: '+ps.map((p,i)=>esc(p.name)+' '+vn[i].toFixed(1)).join(', ')+'">'+g
+   +'<polygon points="'+poly(vt)+'" fill="none" stroke="#46d9ff" stroke-width="2" stroke-dasharray="5 4" stroke-linejoin="round"/>'
+   +'<polygon points="'+poly(vn)+'" fill="#f39a2c" fill-opacity=".26" stroke="#f39a2c" stroke-width="2.5" stroke-linejoin="round"/>'+dots+lab+'</svg>'}
+
+/* ============ render ============ */
+function render(){
+  const r=route();const prev=state.route;const y=window.scrollY;const fk=document.activeElement&&document.activeElement.dataset?document.activeElement.dataset.fk:null;
+  state.route=r;const views={welcome:viewWelcome,pursuits:viewPursuits,quests:viewQuests,habits:viewHabits,growth:viewGrowth,board:viewBoard,profile:viewProfile};
+  $('#app').innerHTML=header(r)+'<main class="wrap gut" id="main">'+views[r]()+'</main>';
+  hideTip();drawAll();tick();
+  if(prev===r)window.scrollTo(0,y);else window.scrollTo(0,0);
+  if(fk){const el=$('[data-fk="'+fk+'"]');if(el)try{el.focus({preventScroll:true})}catch(e){}}}
+function drawAll(){$$('[data-chart]').forEach(el=>{const k=el.dataset.chart;if(k==='heat'){drawHeat(el);const s=el.parentElement;s.scrollLeft=s.scrollWidth}else if(k==='line')drawLine(el);else if(k==='bars')drawBars(el);else if(k==='radar')drawRadar(el)})}
+function tick(){const D=root.activeId&&cur();if(!D||!D.timer)return;const t=fmtClock(elapsed(D));$$('[data-clock]').forEach(e=>e.textContent=t)}
+setInterval(tick,1000);
+let rz;window.addEventListener('resize',()=>{clearTimeout(rz);rz=setTimeout(()=>{$$('[data-chart]').forEach(el=>{const k=el.dataset.chart;if(k==='line')drawLine(el);else if(k==='bars')drawBars(el);else if(k==='radar')drawRadar(el)})},150)});
+window.addEventListener('hashchange',render);
+function go(h){if(location.hash==='#'+h)render();else location.hash=h}
+
+/* ============ modals (forms) ============ */
+function taskOptions(D,sel){return activeP(D).map(p=>{const l=liveTasks(D).filter(t=>t.pid===p.id);return l.length?'<optgroup label="'+esc(p.name)+'">'+l.map(t=>'<option value="'+t.id+'"'+(t.id===sel?' selected':'')+'>'+esc(t.title)+'</option>').join('')+'</optgroup>':''}).join('')}
+function modalNewTask(pid){const D=cur();const ps=activeP(D);
+  openModal('<h2 id="dt">New quest</h2><form class="stack" data-form="newtask"><label class="lb">Quest<input id="qt" name="title" maxlength="80" required autofocus placeholder="e.g. Revise chapter 4"></label>'
+  +'<label class="lb">Pursuit<select name="pid">'+ps.map(p=>'<option value="'+p.id+'"'+(p.id===pid?' selected':'')+'>'+esc(p.name)+'</option>').join('')+'</select></label>'
+  +'<div class="ctrl"><label class="lb">Repeats<select name="cad" id="qc"><option value="daily"'+(state.tab==='daily'?' selected':'')+'>Every day</option><option value="weekly"'+(state.tab==='weekly'?' selected':'')+'>Every week</option><option value="monthly"'+(state.tab==='monthly'?' selected':'')+'>Every month</option><option value="once"'+(state.tab==='once'?' selected':'')+'>One-off</option></select></label>'
+  +'<label class="lb">Times per period<input name="target" type="number" min="1" max="14" value="1"></label></div>'
+  +'<label class="lb">Difficulty<select name="xp">'+DIFF.map(d=>'<option value="'+d[2]+'"'+(d[0]==='medium'?' selected':'')+'>'+d[1]+' · '+d[2]+' XP</option>').join('')+'</select></label>'
+  +'<div class="row"><button class="btn primary" type="submit">Add quest</button><button class="btn" type="button" data-act="close">Cancel</button></div></form>')}
+function modalLog(tid){const D=cur();const ts=liveTasks(D);if(!ts.length){toast('Add a quest first.');return}
+  openModal('<h2 id="dt">Add time</h2><form class="stack" data-form="log"><label class="lb">Quest<select name="tid" id="lt" autofocus>'+taskOptions(D,tid)+'</select></label><div class="ctrl"><label class="lb">Minutes<input name="min" type="number" min="1" max="600" value="25" required></label><label class="lb">Date<input name="date" type="date" value="'+today()+'" max="'+today()+'" required></label></div><p class="hint">You earn 1 XP for every 5 minutes.</p><div class="row"><button class="btn primary" type="submit">Save time</button><button class="btn" type="button" data-act="close">Cancel</button></div></form>')}
+function modalConfirm(title,text,act,id){openModal('<h2 id="dt">'+esc(title)+'</h2><p class="muted">'+esc(text)+'</p><div class="row"><button class="btn danger" data-act="'+act+'" data-id="'+(id||'')+'" autofocus>Yes, do it</button><button class="btn" data-act="close">Cancel</button></div>')}
+
+/* ============ events ============ */
+document.addEventListener('click',e=>{
+  if(e.target.hasAttribute&&e.target.hasAttribute('data-scrim')){closeModal();return}
+  const el=e.target.closest('[data-act]');if(!el)return;const a=el.dataset.act,id=el.dataset.id;const D=root.activeId?cur():null;
+  switch(a){
+   case'btab':state.bt=el.dataset.key;render();break;
+   case'brefresh':loadBoard();break;
+   case'bleave':leaveBoard();break;
+   case'close':closeModal();break;
+   case'demo':e.preventDefault();seedDemo();go('quests');break;
+   case'pick':root.activeId=id;save();go('quests');break;
+   case'leavedemo':{const pid=root.activeId;root.profiles=root.profiles.filter(p=>p.id!==pid);delete root.data[pid];root.activeId=null;save();go('welcome');break}
+   case'tpreset':{const k=el.dataset.key;const p=D.pursuits.find(x=>x.key===k);if(p&&p.active)p.active=false;else{if(activeP(D).length>=MAXP){toast('You can have up to '+MAXP+' pursuits.');break}addPreset(D,k)}save();render();break}
+   case'tcustom':{const p=pById(D,id);if(p.active)p.active=false;else{if(activeP(D).length>=MAXP){toast('You can have up to '+MAXP+' pursuits.');break}p.active=true}save();render();break}
+   case'topursuitsdone':go('quests');break;
+   case'tab':state.tab=el.dataset.v;render();break;
+   case'pf':state.pf=el.dataset.v;render();break;
+   case'range':state.range=el.dataset.v;render();break;
+   case'tap':tap(id,el.dataset.date||today());break;
+   case'untap':{const t=D.tasks.find(x=>x.id===id);undoOne(D,t,today());save();render();break}
+   case'start':{if(D.timer){toast('A timer is already running. Stop it first.');break}D.timer={tid:id,at:Date.now()};save();render();toast('Timer started');break}
+   case'stop':stopTimer();break;
+   case'discard':D.timer=null;save();render();toast('Timer discarded');break;
+   case'logtime':modalLog(id);break;
+   case'newtask':modalNewTask(el.dataset.pid);break;
+   case'deltask':{const t=D.tasks.find(x=>x.id===id);modalConfirm('Delete this quest?','"'+t.title+'" will be removed. XP you already earned from it stays.','dotask',id);break}
+   case'dotask':{const t=D.tasks.find(x=>x.id===id);if(t)t.archived=true;if(D.timer&&D.timer.tid===id)D.timer=null;save();closeModal();render();toast('Quest deleted');break}
+   case'quick':{const pr=PRESETS.find(x=>x.key===el.dataset.key);const s=pr.sug[+el.dataset.i];const p=D.pursuits.find(x=>x.key===pr.key);D.tasks.push({id:uid(),pid:p.id,title:s[0],cad:s[1],target:s[2],xp:s[3],created:Date.now(),archived:false});save();render();toast('Added: '+s[0]);break}
+   case'markdone':{const t=D.tasks.find(x=>x.id===id);closeModal();if(t&&countIn(D,t,today()).length<t.target)tap(id,today());break}
+   case'hue':{prof().hue=+el.dataset.i;save();render();break}
+   case'reset':modalConfirm('Reset progress?','All XP, quest history and timer sessions for this profile are cleared. Your pursuits and quests stay.','doreset');break;
+   case'doreset':{D.comps=[];D.sess=[];D.timer=null;save();closeModal();render();toast('Progress reset');break}
+   case'delprofile':modalConfirm('Delete this profile?','The character and all its data are removed from this browser.','dodel');break;
+   case'dodel':{const pid=root.activeId;if(prof()&&prof().lb&&DB&&UID)DB.doc('board/'+UID).delete().catch(()=>{});root.profiles=root.profiles.filter(p=>p.id!==pid);delete root.data[pid];root.activeId=null;save();closeModal();go('welcome');break}
+  }});
+document.addEventListener('change',e=>{const k=e.target.dataset&&e.target.dataset.set;if(!k)return;state[k]=e.target.value;render()});
+document.addEventListener('submit',e=>{e.preventDefault();const f=e.target;const k=f.dataset.form;const fd=new FormData(f);const D=root.activeId?cur():null;
+  if(k==='boardjoin'){joinBoard(fd.get('dn'))}
+  else if(k==='bsignin'){bSignIn(String(fd.get('pw')||''))}
+  else if(k==='guest'){const nm=(fd.get('name')||'').trim()||'Wanderer';newProfile({name:nm,guest:true});go('pursuits')}
+  else if(k==='email'){const em=(fd.get('email')||'').trim().toLowerCase();const nm=(fd.get('name')||'').trim();if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){toast('Enter a valid email address.');return}
+    emailGo(em,nm,String(fd.get('password')||''))}
+  else if(k==='custom'){const nm=(fd.get('name')||'').trim();if(!nm)return;if(activeP(D).length>=MAXP){toast('You can have up to '+MAXP+' pursuits.');return}if(D.pursuits.some(p=>p.name.toLowerCase()===nm.toLowerCase())){toast('You already have that pursuit.');return}addCustom(D,nm);save();render();const i=$('#cname');if(i)i.focus()}
+  else if(k==='newtask'){const t=(fd.get('title')||'').trim();if(!t)return;const cad=fd.get('cad');D.tasks.push({id:uid(),pid:fd.get('pid'),title:t,cad,target:cad==='once'?1:clamp(parseInt(fd.get('target'))||1,1,14),xp:+fd.get('xp')||25,created:Date.now(),archived:false});state.tab=cad;save();closeModal();render();toast('Quest added')}
+  else if(k==='log'){const min=clamp(parseInt(fd.get('min'))||0,1,600);const dt=fd.get('date')||today();if(dt>today()){toast('Pick today or an earlier date.');return}const b=snap(D);const s=logSession(D,fd.get('tid'),min,dt,'manual');closeModal();render();if(s)afterXp(D,b,'Logged '+fmtMin(min)+' · +'+s.xp+' XP')}
+  else if(k==='start'){if(D.timer){toast('A timer is already running.');return}D.timer={tid:fd.get('tid'),at:Date.now()};save();render();toast('Timer started')}
+  else if(k==='rename'){const nm=(fd.get('name')||'').trim();if(nm){prof().name=nm;save();render();toast('Name saved')}}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('#modal .scrim'))closeModal();
+  if(e.key==='Tab'&&$('#modal .dlg')){const f=$$('#modal button,#modal input,#modal select,#modal a').filter(x=>!x.disabled);if(!f.length)return;const a=f[0],z=f[f.length-1];if(e.shiftKey&&document.activeElement===a){e.preventDefault();z.focus()}else if(!e.shiftKey&&document.activeElement===z){e.preventDefault();a.focus()}}});
+
+/* ============ embers ============ */
+(function(){const c=$('#sky'),g=c.getContext('2d');let W,H,ps=[];const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function size(){const d=Math.min(2,devicePixelRatio||1);W=innerWidth;H=innerHeight;c.width=W*d;c.height=H*d;g.setTransform(d,0,0,d,0,0);const N=Math.round(clamp(W*H/16000,30,90));ps=Array.from({length:N},()=>({x:Math.random()*W,y:Math.random()*H,r:Math.random()*1.5+.4,v:Math.random()*.22+.05,a:Math.random()*6.28,s:Math.random()*.02+.006,h:Math.random()<.82?32:196}));draw()}
+  function draw(){g.clearRect(0,0,W,H);ps.forEach(p=>{const al=.3+.55*Math.abs(Math.sin(p.a*2));g.beginPath();g.arc(p.x,p.y,p.r,0,6.283);g.fillStyle='hsla('+p.h+',95%,62%,'+al+')';g.fill()})}
+  function step(){if(!document.hidden){ps.forEach(p=>{p.y-=p.v;p.a+=p.s;p.x+=Math.sin(p.a)*.18;if(p.y<-6){p.y=H+6;p.x=Math.random()*W}});draw()}requestAnimationFrame(step)}
+  size();window.addEventListener('resize',size);if(!reduce)requestAnimationFrame(step)})();
+
+/* ============ account saving (db capability); browser storage stays as the backup ============ */
+const SYNC={local:'Saved on this device',loading:'Connecting…',saving:'Saving…',synced:'Saved to your account',error:'Account unreachable',denied:'Saved on this device only',full:'Account storage full'};
+let syncState='loading',DB=null,UID=null,cloudReady=false,cloudOff=false,dirty=false,flushing=false,flushT=null;
+const remoteCache={};
+function setSync(s){syncState=s;$$('[data-sync]').forEach(e=>{e.textContent=SYNC[s];e.dataset.s=s})}
+function scheduleFlush(){if(!DB||!UID||!cloudReady||cloudOff)return;dirty=true;clearTimeout(flushT);flushT=setTimeout(flush,700);if(syncState==='synced'||syncState==='error')setSync('saving')}
+/* one small doc per profile core and per month of logs, so no doc nears the 256 KiB limit */
+function toDocs(){const docs={meta:{v:1,updated:root.updated||0,activeId:root.activeId||null,profiles:root.profiles}};
+  root.profiles.forEach(p=>{const D=root.data[p.id];if(!D)return;docs['c-'+p.id]={pursuits:D.pursuits,tasks:D.tasks,timer:D.timer||null};
+    const by={};const mo=s=>by[s]||(by[s]={comps:[],sess:[]});
+    D.comps.forEach(c=>mo(c.date.slice(0,7)).comps.push(c));D.sess.forEach(s=>mo(s.date.slice(0,7)).sess.push(s));
+    Object.keys(by).forEach(m=>{docs['l-'+p.id+'-'+m]=by[m]})});return docs}
+function fromDocs(map){const meta=map.meta;if(!meta)return null;
+  const r={profiles:meta.profiles||[],activeId:meta.activeId||null,data:{},updated:meta.updated||0};
+  r.profiles.forEach(p=>{const c=map['c-'+p.id]||{};r.data[p.id]={pursuits:c.pursuits||[],tasks:c.tasks||[],timer:c.timer||null,comps:[],sess:[]}});
+  Object.keys(map).forEach(id=>{const m=/^l-(.+)-(\d{4}-\d{2})$/.exec(id);if(!m)return;const D=r.data[m[1]];if(!D)return;const v=map[id];(v.comps||[]).forEach(x=>D.comps.push(x));(v.sess||[]).forEach(x=>D.sess.push(x))});return r}
+async function writeRetry(fn){try{return await fn()}catch(e){if(e&&e.code==='unavailable'){await new Promise(r=>setTimeout(r,700+Math.random()*600));return await fn()}throw e}}
+async function flush(){
+  if(flushing||!DB||!UID||!cloudReady||cloudOff)return;flushing=true;
+  try{
+    while(dirty){dirty=false;const docs=toDocs(),col='data/users/'+UID,ops=[];
+      Object.keys(docs).forEach(id=>{const s=JSON.stringify(docs[id]);if(remoteCache[id]!==s)ops.push([id,s])});
+      Object.keys(remoteCache).forEach(id=>{if(!(id in docs))ops.push([id,null])});
+      for(const op of ops){const id=op[0],s=op[1],ref=DB.doc(col+'/'+id);
+        if(s===null){await writeRetry(()=>ref.delete());delete remoteCache[id]}else{await writeRetry(()=>ref.set(JSON.parse(s)));remoteCache[id]=s}}}
+    setSync('synced');
+  }catch(e){const c=e&&e.code;
+    if(c==='invalid_argument'||c==='revoked'){cloudOff=true;setSync('denied')}
+    else if(c==='quota_exceeded'){cloudOff=true;setSync('full')}
+    else{setSync('error');dirty=true;clearTimeout(flushT);flushT=setTimeout(flush,8000)}}
+  finally{flushing=false;if(dirty&&!cloudOff&&syncState!=='error')scheduleFlush()}}
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&dirty&&cloudReady){clearTimeout(flushT);flush()}});
+(async function initCloud(){
+  let db=null,user=null,id=null;
+  try{if(window.claude&&window.claude.use){const r=await Promise.all([window.claude.use('db'),window.claude.use('user')]);db=r[0];user=r[1]}}catch(e){}
+  try{if(db&&user)id=await user.id()}catch(e){}
+  if(!db||!id){setSync('local');if(!persistOK)render();return}
+  DB=db;UID=id;
+  for(let a=0;a<3;a++){
+    try{
+      const snap=await Promise.race([DB.collection('data/users/'+UID).get(),new Promise((_,rej)=>setTimeout(()=>rej({code:'unavailable'}),10000))]);
+      const map={};snap.docs.forEach(d=>{map[d.id]=d.data()});
+      const remote=fromDocs(map),hasLocal=root.profiles.length>0;
+      if(remote&&(!hasLocal||(remote.updated||0)>=(root.updated||0))){
+        root=JSON.parse(JSON.stringify(remote));if(root.activeId&&!root.profiles.some(p=>p.id===root.activeId))root.activeId=null;persistLocal();
+        const docs=toDocs();Object.keys(map).forEach(k=>{remoteCache[k]=k in docs?JSON.stringify(docs[k]):'-'});
+        cloudReady=true;setSync('synced');render()}
+      else if(hasLocal){Object.keys(map).forEach(k=>{remoteCache[k]='-'});cloudReady=true;dirty=true;await flush()}
+      else{cloudReady=true;setSync('synced')}
+      return}
+    catch(e){if(e&&(e.code==='invalid_argument'||e.code==='revoked')){setSync('denied');return}setSync('error');await new Promise(r=>setTimeout(r,5000))}}
+  if(!persistOK)render();
+})();
+
+/* ============ email accounts for the public site (Netlify Function + Blobs) ============ */
+const API='/.netlify/functions/api',WK='mainquest:ws';
+let WS=null;try{WS=JSON.parse(localStorage.getItem(WK))}catch(e){}
+function setWS(v){WS=v;try{v?localStorage.setItem(WK,JSON.stringify(v)):localStorage.removeItem(WK)}catch(e){}}
+async function api(op,body){let r;try{r=await fetch(API,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(Object.assign({op:op,token:WS&&WS.token},body))})}catch(e){throw{code:'unavailable'}}
+  const j=await r.json().catch(()=>({}));if(!r.ok)throw{code:j.error||'unavailable'};return j}
+const bId=()=>DB&&UID?UID:WS?WS.uid:null;
+const bWrite=d=>DB&&UID?writeRetry(()=>DB.doc('board/'+UID).set(d)):api('put',{d:d});
+const bDelete=()=>DB&&UID?writeRetry(()=>DB.doc('board/'+UID).delete()):api('del');
+async function bRead(){if(DB){const q=await DB.collection('board').get();return q.docs.map(x=>Object.assign({},x.data(),{id:x.id}))}return (await api('list')).rows}
+function authMsg(e){return e.code==='wrong'?'Wrong password for that email.':e.code==='unavailable'?'Can’t reach the server. Try again.':'Couldn’t sign in. Try again.'}
+async function emailGo(em,nm,pw){
+  if(!DB){if(pw.length<8){toast('Use a password of at least 8 characters.');return}
+    try{const r=await api('auth',{email:em,password:pw});setWS({token:r.token,uid:r.uid,email:em})}catch(e){toast(authMsg(e));return}}
+  const ex=root.profiles.find(p=>p.email===em);
+  if(ex){root.activeId=ex.id;save();toast('Welcome back, '+ex.name);go('quests')}else{newProfile({name:nm||em.split('@')[0],email:em});go('pursuits')}}
+async function bSignIn(pw){const pr=prof();if(!pr||!pr.email)return;
+  try{const r=await api('auth',{email:pr.email,password:pw});setWS({token:r.token,uid:r.uid,email:pr.email});lastPub='';BD.st='idle';render();toast('Signed in')}catch(e){toast(authMsg(e))}}
+
+/* ============ leaderboard: shared collection "board", one small doc per account ============ */
+let BD={st:'idle',rows:[],t:0,noWrite:false},boardT=null,lastPub='';
+const BKEYS=PRESETS.map(p=>p.key);
+const num0=v=>{v=Number(v);return isFinite(v)&&v>0?Math.min(v,1e9):0};
+function boardDoc(){const pr=prof(),D=root.activeId?cur():null;if(!pr||!D||!pr.lb)return null;
+  const px=xpByP(D),p={};activeP(D).forEach(a=>{if(a.key&&BKEYS.indexOf(a.key)>-1)p[a.key]=px[a.id]||0});
+  return{n:String(pr.lb).slice(0,24),xp:totalXp(D),p,u:Date.now()}}
+function schedBoard(){const pr=prof();if(!bId()||!pr||!pr.lb)return;clearTimeout(boardT);boardT=setTimeout(pubBoard,1500)}
+async function pubBoard(){const d=boardDoc();if(!d||!bId())return true;const k=JSON.stringify({n:d.n,xp:d.xp,p:d.p});if(k===lastPub)return true;
+  try{await bWrite(d);lastPub=k;if(BD.st==='ok')BD.st='idle';return true}
+  catch(e){const c=e&&e.code;if(c==='session')setWS(null);if(c==='invalid_argument'||c==='revoked')BD.noWrite=true;return false}}
+async function joinBoard(raw){const pr=prof();if(!pr||!pr.email||!bId())return;
+  const n=String(raw||'').replace(/\s+/g,' ').trim().slice(0,24);if(!n){toast('Pick a display name.');return}
+  pr.lb=n;lastPub='';const ok=await pubBoard();
+  if(!ok){delete pr.lb;toast(BD.noWrite?'Your access here is view-only, so you can’t join the board.':'Couldn’t join right now. Try again.');render();return}
+  save();BD.st='idle';toast('You joined the leaderboard');render()}
+async function leaveBoard(){const pr=prof();if(!pr||!pr.lb)return;
+  try{if(bId())await bDelete()}catch(e){toast('Couldn’t leave right now. Try again.');return}
+  delete pr.lb;lastPub='';save();BD.st='idle';toast('You left the leaderboard');render()}
+async function loadBoard(){if(BD.st==='loading')return;BD.st='loading';render();
+  try{const raw=await Promise.race([bRead(),new Promise((_,j)=>setTimeout(()=>j({code:'unavailable'}),10000))]);
+    BD.rows=raw.map(v=>{v=v||{};const p={};BKEYS.forEach(k=>{if(v.p&&typeof v.p==='object'&&k in v.p)p[k]=num0(v.p[k])});return{id:v.id,n:String(v.n||'Player').slice(0,24),xp:num0(v.xp),p}});BD.st='ok'}
+  catch(e){BD.st='error'}
+  BD.t=Date.now();render()}
+window.addEventListener('hashchange',()=>{if(location.hash==='#board'&&BD.st==='ok'&&Date.now()-BD.t>15000)loadBoard()});
+function viewBoard(){
+  const pr=prof(),bt=state.bt||'all';
+  if(BD.st==='idle')setTimeout(loadBoard,0);
+  let top='';
+  if(!pr||!pr.email)top='<div class="note">Only signed-up players are listed. Guest and example profiles can look but can’t join. Sign up with your email to join.</div>';
+  else if(!DB&&(!WS||WS.email!==pr.email))top='<form class="stack" data-form="bsignin"><p>Enter the password for <b>'+esc(pr.email)+'</b> to join the leaderboard. First time here? Choosing a password creates your account.</p><label class="lb">Password<input name="pw" type="password" required minlength="8" autocomplete="current-password"></label><div class="row"><button class="btn primary" type="submit">Sign in</button></div></form>';
+  else if(BD.noWrite&&!pr.lb)top='<div class="note">Your access here is view-only, so you can see the board but not join it. Ask the owner for Contributor access.</div>';
+  else if(pr.lb)top='<div class="row between"><span>Listed as <b>'+esc(pr.lb)+'</b></span><button class="btn small danger" data-act="bleave">Leave board</button></div>';
+  else{const em=(pr.email||'').split('@')[0].toLowerCase();const pre=pr.name&&pr.name.toLowerCase()!==em?pr.name:'';
+    top='<form class="stack" data-form="boardjoin"><label class="lb">Display name on the board<input name="dn" maxlength="24" required placeholder="A name others will see" value="'+esc(pre)+'"></label><p class="hint">Other players will see this name, your levels and your XP. Nothing else. You can leave any time.</p><div class="row"><button class="btn primary" type="submit">Join leaderboard</button></div></form>'}
+  const intro='<section class="slot"><div class="pill">Leaderboard</div><div class="panel">'+top+'</div></section>';
+  const opts=[['all','Overall']].concat(PRESETS.map(p=>[p.key,p.name]));
+  const chips='<div class="row" role="group" aria-label="Choose a leaderboard">'+opts.map(o=>'<button class="chip" aria-pressed="'+(o[0]===bt)+'" data-act="btab" data-key="'+o[0]+'">'+esc(o[1])+'</button>').join('')+'</div>';
+  const val=r=>bt==='all'?r.xp:r.p[bt];
+  let rows=BD.rows.slice();if(bt!=='all')rows=rows.filter(r=>bt in r.p);
+  rows.sort((a,b)=>val(b)-val(a)||a.n.localeCompare(b.n));
+  const body=rows.length?'<ol class="bdl">'+rows.map((r,i)=>{const L=levelOf(val(r)).L,me=r.id===bId();
+    const sub=bt==='all'?PRESETS.filter(p=>p.key in r.p).map(p=>'<span class="bdp" style="--c:'+p.color+'"><i></i>'+esc(p.name)+' '+levelOf(r.p[p.key]).L+'</span>').join(''):'';
+    return '<li class="bdr'+(me?' me':'')+'"><span class="rk num">'+(i+1)+'</span><div class="who"><b>'+esc(r.n)+(me?' <span class="muted">(you)</span>':'')+'</b>'+(bt==='all'?'<span class="muted">'+esc(titleOf(L))+'</span>':'')+(sub?'<div class="bdps">'+sub+'</div>':'')+'</div><div class="sc num"><b>LV '+L+'</b><span class="muted">'+nf(val(r))+' XP</span></div></li>'}).join('')+'</ol>'
+    :(BD.st==='ok'?'<p class="empty">No one is here yet. Be the first to join.</p>':BD.st==='error'?'':'<p class="empty">Loading…</p>');
+  const err=BD.st==='error'?'<div class="note"><span>Couldn’t load the board.</span><button class="btn small" data-act="brefresh">Try again</button></div>':'';
+  const title=bt==='all'?'Overall':PRESETS.find(p=>p.key===bt).name;
+  return intro+'<section class="slot"><div class="pill">'+esc(title)+'</div><div class="panel">'+chips+err+'<div class="row between"><span class="hint">'+rows.length+(rows.length===1?' player':' players')+(BD.st==='loading'?' · updating…':'')+'</span><button class="btn small cyan" data-act="brefresh">Refresh</button></div>'+body+'</div></section>'}
+
+render();
+</script>
+</body>
+</html>
